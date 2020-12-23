@@ -1,3 +1,6 @@
+var penguin;
+var balls = [];
+
 function drawBall(ctx, x, y, r) {
   var gradient = ctx.createRadialGradient(
     x + r * 0.2,  // x1
@@ -17,10 +20,72 @@ function drawBall(ctx, x, y, r) {
 
 function draw(canvas) {
   const ctx = canvas.getContext("2d");
-  drawBall(ctx, 100, 100, 50);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawBall(ctx, penguin.x, penguin.y, penguin.r);
+  requestAnimationFrame((timeStep) => {
+    penguin.update(timeStep);
+    draw(canvas);
+  });
+}
+
+class Penguin {
+  constructor() {
+    this.x = 500;
+    this.y = 600;
+    this.dx = 0;
+    this.dy = 0;
+    this.r = 0;
+    this.lastUpdate = 0;
+    document.addEventListener("keydown", (ev) => {
+      this.handleKeyDown(ev);
+    });
+    document.addEventListener("keyup", (ev) => {
+      this.handleKeyDown(ev);
+    });
+  }
+
+  handleKeyDown(ev) {
+    if (ev.type == "keyup") {
+      this.dx = 0;
+      return;
+    }
+    switch (ev.code) {
+      case "ArrowRight":
+        this.dx = 10;
+        break;
+      case "ArrowLeft":
+        this.dx = -10;
+        break;
+    }
+    console.log(ev.code);
+  }
+
+  update(timeStep) {
+    if (!this.lastUpdate) {
+      this.lastUpdate = timeStep;
+      return;
+    }
+    let dt = timeStep / this.lastUpdate;
+    this.lastUpdate = timeStep;
+    this.x += dt * this.dx;
+    this.dy += dt * this.dy;
+    const dr = dt * Math.abs(this.dx * 0.01);
+    this.r += dr;
+    this.y -= 1 * dr;
+  }
+
+}
+
+class Ball {
+  constructor(x, y, r) {
+    this.x = x;
+    this.y = y;
+  }
 }
 
 function main() {
+  penguin = new Penguin();
+
   const body = document.getElementsByTagName("body")[0];
   const canvas = document.createElement("canvas");
   canvas.width = 1000;
