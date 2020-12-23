@@ -21,7 +21,7 @@ function drawBall(ctx, x, y, r) {
 function draw(canvas) {
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawBall(ctx, penguin.x, penguin.y, penguin.r);
+  penguin.draw(ctx);
   for (let b of balls) {
     drawBall(ctx, b.x, b.y, b.r);
   }
@@ -35,12 +35,13 @@ function draw(canvas) {
 }
 
 class Penguin {
-  constructor() {
+  constructor(penguinImage) {
     this.x = 500;
     this.y = 600;
     this.dx = 0;
     this.dy = 0;
     this.r = 0;
+    this.image = penguinImage;
     this.lastUpdate = 0;
     document.addEventListener("keydown", (ev) => {
       this.handleKeyDown(ev);
@@ -62,6 +63,7 @@ class Penguin {
       case "ArrowLeft":
         this.dx = -10;
         break;
+      case "ArrowUp":
       case "Space":
         const ball = new Ball(this.x, this.y, this.r);
         balls.push(ball);
@@ -69,6 +71,12 @@ class Penguin {
         break;
     }
     console.log(ev.code);
+  }
+
+  draw(ctx) {
+    drawBall(ctx, this.x, this.y, this.r);
+    ctx.drawImage(this.image, 20, 20, 20, 20, 
+      this.x - 50, this.y - 100 - this.r, 100, 100);
   }
 
   update(timeStep) {
@@ -109,11 +117,14 @@ class Ball {
 }
 
 function main() {
-  penguin = new Penguin();
+
+  const image = document.createElement('img');
+  image.src = "color.png";
+  penguin = new Penguin(image);
 
   const body = document.getElementsByTagName("body")[0];
   const canvas = document.createElement("canvas");
-  canvas.width = 1000;
+  canvas.width = 1300;
   canvas.height = 800;
 
   body.appendChild(canvas);
