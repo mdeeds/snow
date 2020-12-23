@@ -22,8 +22,14 @@ function draw(canvas) {
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBall(ctx, penguin.x, penguin.y, penguin.r);
+  for (let b of balls) {
+    drawBall(ctx, b.x, b.y, b.r);
+  }
   requestAnimationFrame((timeStep) => {
     penguin.update(timeStep);
+    for (let b of balls) {
+      b.update(timeStep);
+    }
     draw(canvas);
   });
 }
@@ -56,6 +62,11 @@ class Penguin {
       case "ArrowLeft":
         this.dx = -10;
         break;
+      case "Space":
+        const ball = new Ball(this.x, this.y, this.r);
+        balls.push(ball);
+        this.r = 0;
+        break;
     }
     console.log(ev.code);
   }
@@ -80,6 +91,20 @@ class Ball {
   constructor(x, y, r) {
     this.x = x;
     this.y = y;
+    this.r = r;
+    this.dy = -10;
+    this.dx = 0;
+  }
+  update(timeStep) {
+    if (!this.lastUpdate) {
+      this.lastUpdate = timeStep;
+      return;
+    }
+    let dt = timeStep / this.lastUpdate;
+    this.lastUpdate = timeStep;
+    this.x += dt * this.dx;
+    this.y += dt * this.dy;
+    this.dy += 0.2 * dt;
   }
 }
 
