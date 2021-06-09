@@ -24,7 +24,7 @@ class Ball {
         return (dx2 + dy2) <= twor2;
     }
     render(ctx) {
-        if (this.r < 6) {
+        if (this.r < 6 && ctx.fillStyle !== this.c) {
             ctx.fillStyle = this.c;
         }
         else {
@@ -77,6 +77,7 @@ class Main {
         this.balls = new Set();
         this.movers = [];
         this.playerBalls = [];
+        this.frameNumber = 0;
         const body = document.getElementsByTagName("body")[0];
         this.canvas = document.createElement("canvas");
         this.canvas.width = 1024;
@@ -87,8 +88,8 @@ class Main {
         }
         const b = new ball_1.Ball(Math.random() * 1024, Math.random() * 1024, ball_1.Ball.minRadius);
         b.c = 'orange';
-        const sink = new movementSink_1.MovementSink(b, this.balls);
-        const mouseSource = new mouseSource_1.MouseSource(this.canvas, sink);
+        this.sink = new movementSink_1.MovementSink(b, this.balls);
+        const mouseSource = new mouseSource_1.MouseSource(this.canvas, this.sink);
         this.movers.push(mouseSource);
         this.playerBalls.push(b);
         body.appendChild(this.canvas);
@@ -108,6 +109,7 @@ class Main {
         b.y -= p * dy;
     }
     renderLoop() {
+        ++this.frameNumber;
         const ctx = this.canvas.getContext("2d");
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         for (const b of this.balls) {
@@ -116,8 +118,9 @@ class Main {
             b.render(ctx);
         }
         for (const m of this.movers) {
-            m.update();
+            m.update(this.frameNumber);
         }
+        this.sink.update(this.frameNumber);
         const ballsToRemove = [];
         for (let b of this.playerBalls) {
             b.render(ctx);
@@ -155,19 +158,24 @@ class MouseSource {
         this.x = 0;
         this.y = 0;
         this.split = false;
+        this.changed = true;
         this.sink = sink;
         canvas.addEventListener('mousemove', (ev) => {
             this.x = ev.clientX - canvas.offsetLeft;
             this.y = ev.clientY - canvas.offsetTop;
+            this.changed = true;
         });
         canvas.addEventListener('click', (ev) => {
             this.split = true;
         });
     }
-    update() {
-        this.sink.moveTo(this.x, this.y);
+    update(frameNumber) {
+        if (this.changed) {
+            this.changed = false;
+            this.sink.moveTo(this.x, this.y, frameNumber);
+        }
         if (this.split) {
-            this.sink.split();
+            this.sink.split(frameNumber);
             this.split = false;
         }
     }
@@ -184,9 +192,20 @@ exports.MouseSource = MouseSource;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.MovementSink = void 0;
 const ball_1 = __webpack_require__(340);
+class FuturePoint {
+    constructor(frame, x, y) {
+        this.frame = frame;
+        this.x = x;
+        this.y = y;
+    }
+}
 class MovementSink {
     constructor(ball, nonPlayerBalls) {
         this.lastAngle = 0;
+        this.futureDestinations = [];
+        this.futureSplits = [];
+        this.lastFrameProcessed = 0;
+        this.lastPoint = null;
         this.ball = ball;
         this.nonPlayerBalls = nonPlayerBalls;
     }
@@ -195,7 +214,12 @@ class MovementSink {
         const dy2 = dy * dy;
         return Math.sqrt(dx2 + dy2);
     }
-    moveTo(x, y) {
+    moveTo(x, y, frameNumber) {
+        if (frameNumber >= this.lastFrameProcessed) {
+            this.futureDestinations.push(new FuturePoint(frameNumber + MovementSink.latency, x, y));
+        }
+    }
+    internalMoveTo(x, y) {
         const maxSpeed = 30 / Math.pow(this.ball.r, 1.5);
         const dx = x - this.ball.x;
         const dy = y - this.ball.y;
@@ -211,7 +235,12 @@ class MovementSink {
         }
         this.lastAngle = Math.atan2(dy, dx);
     }
-    split() {
+    split(frameNumber) {
+        if (frameNumber >= this.lastFrameProcessed) {
+            this.futureSplits.push(frameNumber);
+        }
+    }
+    internalSplit() {
         const oldRadius = this.ball.r * Math.sqrt(0.45);
         const newRadius = this.ball.r * Math.sqrt(0.55);
         if (newRadius < ball_1.Ball.minRadius) {
@@ -226,8 +255,31 @@ class MovementSink {
         this.ball.y += dy;
         this.ball.r = newRadius;
     }
+    update(frameNumber) {
+        let moved = false;
+        while (this.futureDestinations.length > 0 &&
+            this.futureDestinations[0].frame === frameNumber) {
+            const d = this.futureDestinations[0];
+            this.lastPoint = d;
+            this.internalMoveTo(d.x, d.y);
+            this.futureDestinations.splice(0, 1);
+            moved = true;
+        }
+        if (!moved && this.lastPoint) {
+            this.internalMoveTo(this.lastPoint.x, this.lastPoint.y);
+        }
+        if (this.futureSplits[0] === frameNumber) {
+            this.internalSplit();
+            while (this.futureSplits.length > 0 &&
+                this.futureSplits[0] === frameNumber) {
+                this.futureSplits.splice(0, 1);
+            }
+        }
+    }
 }
 exports.MovementSink = MovementSink;
+// Latency from command to action measured in frames.
+MovementSink.latency = 10;
 //# sourceMappingURL=movementSink.js.map
 
 /***/ })

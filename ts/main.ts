@@ -5,9 +5,10 @@ import { MovementSink } from './movementSink';
 export class Main {
   private balls: Set<Ball> = new Set<Ball>();
   private movers: MouseSource[] = [];
+  private sink: MovementSink;
   private playerBalls: Ball[] = [];
   private canvas: HTMLCanvasElement;
-
+  private frameNumber: number = 0;
 
   constructor() {
     const body = document.getElementsByTagName("body")[0];
@@ -24,8 +25,8 @@ export class Main {
     const b = new Ball(Math.random() * 1024, Math.random() * 1024,
       Ball.minRadius);
     b.c = 'orange';
-    const sink = new MovementSink(b, this.balls);
-    const mouseSource = new MouseSource(this.canvas, sink);
+    this.sink = new MovementSink(b, this.balls);
+    const mouseSource = new MouseSource(this.canvas, this.sink);
     this.movers.push(mouseSource);
     this.playerBalls.push(b);
 
@@ -48,6 +49,7 @@ export class Main {
   }
 
   renderLoop() {
+    ++this.frameNumber;
     const ctx = this.canvas.getContext("2d");
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     for (const b of this.balls) {
@@ -56,8 +58,10 @@ export class Main {
       b.render(ctx);
     }
     for (const m of this.movers) {
-      m.update();
+      m.update(this.frameNumber);
     }
+    this.sink.update(this.frameNumber);
+
     const ballsToRemove: Ball[] = [];
     for (let b of this.playerBalls) {
       b.render(ctx);
