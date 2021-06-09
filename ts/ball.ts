@@ -1,4 +1,6 @@
 export class Ball {
+  public static minRadius: number = 2;
+
   x: number;
   y: number;
   r: number;
@@ -16,7 +18,7 @@ export class Ball {
     const dy = other.y - this.y;
     const dx2 = dx * dx;
     const dy2 = dy * dy;
-    return (dx2 + dy2 <= twor2);
+    return (dx2 + dy2) <= twor2;
   }
 
   render(ctx: CanvasRenderingContext2D) {
@@ -32,7 +34,7 @@ export class Ball {
         this.r);  // r2
       gradient.addColorStop(0, 'white');
       gradient.addColorStop(.9, this.c);
-      gradient.addColorStop(1, 'lightblue');
+      gradient.addColorStop(1, 'darkgrey');
       ctx.fillStyle = gradient;
     }
     ctx.beginPath();
