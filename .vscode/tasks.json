@@ -1,0 +1,21 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "typescript",
+      "tsconfig": "ts/tsconfig.json",
+      "problemMatcher": [
+        "$tsc"
+      ],
+      "group": "build",
+      "label": "tsc-compile"
+    },
+    {
+      "type": "shell",
+      "command": "webpack",
+      "group": "build",
+      "label": "build",
+      "dependsOn": "tsc-compile"
+    }
+  ]
+}
