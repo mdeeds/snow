@@ -22,7 +22,7 @@ export class Ball {
   }
 
   render(ctx: CanvasRenderingContext2D) {
-    if (this.r < 6) {
+    if (this.r < 6 && ctx.fillStyle !== this.c) {
       ctx.fillStyle = this.c;
     } else {
       const gradient = ctx.createRadialGradient(
