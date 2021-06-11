@@ -1,6 +1,9 @@
 import { Ball } from './ball';
 import { MouseSource } from './mouseSource';
 import { MovementSink } from './movementSink';
+import { PeerGroup } from './peerGroup';
+
+const playerColors = ['blue', 'green', 'purple', 'red', 'orange', 'yellow'];
 
 export class Main {
   private balls: Set<Ball> = new Set<Ball>();
@@ -9,8 +12,9 @@ export class Main {
   private playerBalls: Ball[] = [];
   private canvas: HTMLCanvasElement;
   private frameNumber: number = 0;
+  private peerGroup: PeerGroup;
 
-  constructor() {
+  constructor(peerGroup: PeerGroup, playerNumber: number) {
     const body = document.getElementsByTagName("body")[0];
     this.canvas = document.createElement("canvas");
     this.canvas.width = 1024;
@@ -24,13 +28,14 @@ export class Main {
 
     const b = new Ball(Math.random() * 1024, Math.random() * 1024,
       Ball.minRadius);
-    b.c = 'orange';
+    b.c = playerColors[playerNumber];
     this.sink = new MovementSink(b, this.balls);
     const mouseSource = new MouseSource(this.canvas, this.sink);
     this.movers.push(mouseSource);
     this.playerBalls.push(b);
 
     body.appendChild(this.canvas);
+    peerGroup.broadcast('hello', 'world');
     this.renderLoop();
   }
 
