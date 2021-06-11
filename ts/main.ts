@@ -14,7 +14,7 @@ export class Main {
   private frameNumber: number = 0;
   private peerGroup: PeerGroup;
 
-  constructor(peerGroup: PeerGroup, playerNumber: number) {
+  constructor(peerGroup: PeerGroup, playerNumber: number, hostId: string) {
     const body = document.getElementsByTagName("body")[0];
     this.canvas = document.createElement("canvas");
     this.canvas.width = 1024;
@@ -30,12 +30,11 @@ export class Main {
       Ball.minRadius);
     b.c = playerColors[playerNumber];
     this.sink = new MovementSink(b, this.balls);
-    const mouseSource = new MouseSource(this.canvas, this.sink);
+    const mouseSource = new MouseSource(this.canvas);
     this.movers.push(mouseSource);
     this.playerBalls.push(b);
 
     body.appendChild(this.canvas);
-    peerGroup.broadcast('hello', 'world');
     this.renderLoop();
   }
 
@@ -63,7 +62,7 @@ export class Main {
       b.render(ctx);
     }
     for (const m of this.movers) {
-      m.update(this.frameNumber);
+      m.update(this.frameNumber, this.sink);
     }
     this.sink.update(this.frameNumber);
 
@@ -72,7 +71,9 @@ export class Main {
       b.render(ctx);
       for (let o of this.balls) {
         if (o.touching(b)) {
-          if (o.r <= b.r) {
+          // You can always eat balls of your own color.
+          // You can also eat balls that are no bigger than you.
+          if (o.c === b.c || o.r <= b.r) {
             b.r = Math.sqrt(o.r * o.r + b.r * b.r);
             ballsToRemove.push(o);
           } else {

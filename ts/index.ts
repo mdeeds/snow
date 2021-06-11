@@ -9,8 +9,9 @@ async function go() {
   let p = new Peer();
   let group: PeerGroup = null;
   let playerNumber = 0;
+  let hostId = null;
   if (url.searchParams.get('join')) {
-    const hostId = url.searchParams.get('join');
+    hostId = url.searchParams.get('join');
     group = await PeerGroup.make(p, hostId);
     playerNumber = parseInt(await group.ask(hostId, 'playerNumber:please'));
   } else {
@@ -32,7 +33,7 @@ async function go() {
       return response;
     });
   }
-  const m = new Main(group, playerNumber);
+  const m = new Main(group, playerNumber, hostId);
 }
 
 go();
