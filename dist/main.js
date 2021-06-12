@@ -50,6 +50,24 @@ Ball.minRadius = 2;
 
 /***/ }),
 
+/***/ 456:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FutureMove = void 0;
+class FutureMove {
+    constructor(frameNumber, type) {
+        this.frameNumber = frameNumber;
+        this.type = type;
+    }
+}
+exports.FutureMove = FutureMove;
+//# sourceMappingURL=futureMove.js.map
+
+/***/ }),
+
 /***/ 138:
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -78,8 +96,9 @@ function go() {
         let p = new peerjs_1.default();
         let group = null;
         let playerNumber = 0;
+        let hostId = null;
         if (url.searchParams.get('join')) {
-            const hostId = url.searchParams.get('join');
+            hostId = url.searchParams.get('join');
             group = yield peerGroup_1.PeerGroup.make(p, hostId);
             playerNumber = parseInt(yield group.ask(hostId, 'playerNumber:please'));
         }
@@ -101,7 +120,7 @@ function go() {
                 return response;
             });
         }
-        const m = new main_1.Main(group, playerNumber);
+        const m = new main_1.Main(group, playerNumber, hostId);
     });
 }
 go();
@@ -124,13 +143,15 @@ class Log {
         const url = new URL(document.URL);
         return !!url.searchParams.get('debug');
     }
+    static nowString() {
+        return `${(window.performance.now() / 1000).toFixed(2)}`;
+    }
     static info(message) {
-        console.log(message);
+        console.log(`${Log.nowString()} ${message} `);
     }
     static debug(message) {
         if (Log.debugging) {
-            console.log(`${(window.performance.now() / 1000).toFixed(2)} ` +
-                `${message} `);
+            console.log(`${Log.nowString()} ${message} `);
         }
     }
 }
@@ -150,13 +171,16 @@ exports.Main = void 0;
 const ball_1 = __webpack_require__(340);
 const mouseSource_1 = __webpack_require__(907);
 const movementSink_1 = __webpack_require__(312);
+const networkSource_1 = __webpack_require__(307);
 const playerColors = ['blue', 'green', 'purple', 'red', 'orange', 'yellow'];
 class Main {
-    constructor(peerGroup, playerNumber) {
+    constructor(peerGroup, playerNumber, hostId) {
         this.balls = new Set();
-        this.movers = [];
+        this.sources = [];
         this.playerBalls = [];
         this.frameNumber = 0;
+        this.peerGroup = peerGroup;
+        this.isServer = (peerGroup.getId() === hostId) || (!hostId);
         const body = document.getElementsByTagName("body")[0];
         this.canvas = document.createElement("canvas");
         this.canvas.width = 1024;
@@ -167,12 +191,24 @@ class Main {
         }
         const b = new ball_1.Ball(Math.random() * 1024, Math.random() * 1024, ball_1.Ball.minRadius);
         b.c = playerColors[playerNumber];
-        this.sink = new movementSink_1.MovementSink(b, this.balls);
-        const mouseSource = new mouseSource_1.MouseSource(this.canvas, this.sink);
-        this.movers.push(mouseSource);
+        const sink = new movementSink_1.MovementSink(b, this.balls);
+        const mouseSource = new mouseSource_1.MouseSource(this.canvas, peerGroup, sink);
+        this.sources.push(mouseSource);
         this.playerBalls.push(b);
+        peerGroup.addMeetCallback((newId) => {
+            const newBall = new ball_1.Ball(512, 512, 2);
+            newBall.c = 'red';
+            const newSink = new movementSink_1.MovementSink(newBall, this.balls);
+            const ns = new networkSource_1.NetworkSource(newId, peerGroup, newSink);
+            this.sources.push(ns);
+            this.playerBalls.push(newBall);
+        });
+        if (!this.isServer) {
+            peerGroup.addCallback('frameNumber', (fromId, data) => {
+                this.frameNumber = parseInt(data);
+            });
+        }
         body.appendChild(this.canvas);
-        peerGroup.broadcast('hello', 'world');
         this.renderLoop();
     }
     bounce(a, b) {
@@ -190,6 +226,9 @@ class Main {
     }
     renderLoop() {
         ++this.frameNumber;
+        if (this.isServer && this.frameNumber % 32 == 0) {
+            this.peerGroup.broadcast('frameNumber', this.frameNumber.toFixed(0));
+        }
         const ctx = this.canvas.getContext("2d");
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         for (const b of this.balls) {
@@ -197,16 +236,19 @@ class Main {
             b.y += Math.random() - 0.5;
             b.render(ctx);
         }
-        for (const m of this.movers) {
+        for (const m of this.sources) {
+            // TODO: Not always this.sink.
             m.update(this.frameNumber);
+            m.getSink().update(this.frameNumber);
         }
-        this.sink.update(this.frameNumber);
         const ballsToRemove = [];
         for (let b of this.playerBalls) {
             b.render(ctx);
             for (let o of this.balls) {
                 if (o.touching(b)) {
-                    if (o.r <= b.r) {
+                    // You can always eat balls of your own color.
+                    // You can also eat balls that are no bigger than you.
+                    if (o.c === b.c || o.r <= b.r) {
                         b.r = Math.sqrt(o.r * o.r + b.r * b.r);
                         ballsToRemove.push(o);
                     }
@@ -228,18 +270,20 @@ exports.Main = Main;
 /***/ }),
 
 /***/ 907:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.MouseSource = void 0;
+const futureMove_1 = __webpack_require__(456);
 class MouseSource {
-    constructor(canvas, sink) {
+    constructor(canvas, peerGroup, sink) {
         this.x = 0;
         this.y = 0;
         this.split = false;
         this.changed = true;
+        this.peerGroup = peerGroup;
         this.sink = sink;
         canvas.addEventListener('mousemove', (ev) => {
             this.x = ev.clientX - canvas.offsetLeft;
@@ -253,12 +297,21 @@ class MouseSource {
     update(frameNumber) {
         if (this.changed) {
             this.changed = false;
+            const m = new futureMove_1.FutureMove(frameNumber, 'move');
+            m.x = this.x;
+            m.y = this.y;
             this.sink.moveTo(this.x, this.y, frameNumber);
+            this.peerGroup.broadcast(`from_${this.peerGroup.getId()}`, JSON.stringify(m));
         }
         if (this.split) {
+            const m = new futureMove_1.FutureMove(frameNumber, 'split');
             this.sink.split(frameNumber);
             this.split = false;
+            this.peerGroup.broadcast(`from_${this.peerGroup.getId()}`, JSON.stringify(m));
         }
+    }
+    getSink() {
+        return this.sink;
     }
 }
 exports.MouseSource = MouseSource;
@@ -274,18 +327,12 @@ exports.MouseSource = MouseSource;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.MovementSink = void 0;
 const ball_1 = __webpack_require__(340);
-class FuturePoint {
-    constructor(frame, x, y) {
-        this.frame = frame;
-        this.x = x;
-        this.y = y;
-    }
-}
+const futureMove_1 = __webpack_require__(456);
+const log_1 = __webpack_require__(151);
 class MovementSink {
     constructor(ball, nonPlayerBalls) {
         this.lastAngle = 0;
-        this.futureDestinations = [];
-        this.futureSplits = [];
+        this.futureMoves = [];
         this.lastFrameProcessed = 0;
         this.lastPoint = null;
         this.ball = ball;
@@ -297,9 +344,10 @@ class MovementSink {
         return Math.sqrt(dx2 + dy2);
     }
     moveTo(x, y, frameNumber) {
-        if (frameNumber >= this.lastFrameProcessed) {
-            this.futureDestinations.push(new FuturePoint(frameNumber + MovementSink.latency, x, y));
-        }
+        const m = new futureMove_1.FutureMove(frameNumber + MovementSink.latency, 'move');
+        m.x = x;
+        m.y = y;
+        this.futureMoves.push(m);
     }
     internalMoveTo(x, y) {
         const maxSpeed = 30 / Math.pow(this.ball.r, 1.5);
@@ -318,9 +366,8 @@ class MovementSink {
         this.lastAngle = Math.atan2(dy, dx);
     }
     split(frameNumber) {
-        if (frameNumber >= this.lastFrameProcessed) {
-            this.futureSplits.push(frameNumber);
-        }
+        const m = new futureMove_1.FutureMove(frameNumber + MovementSink.latency, 'split');
+        this.futureMoves.push(m);
     }
     internalSplit() {
         const oldRadius = this.ball.r * Math.sqrt(0.45);
@@ -339,23 +386,29 @@ class MovementSink {
     }
     update(frameNumber) {
         let moved = false;
-        while (this.futureDestinations.length > 0 &&
-            this.futureDestinations[0].frame === frameNumber) {
-            const d = this.futureDestinations[0];
-            this.lastPoint = d;
-            this.internalMoveTo(d.x, d.y);
-            this.futureDestinations.splice(0, 1);
+        while (this.futureMoves.length > 0 &&
+            this.futureMoves[0].frameNumber <= frameNumber) {
+            if (this.futureMoves[0].frameNumber < frameNumber) {
+                // Move arrived too late - ignore it.
+                log_1.Log.info(`Old: ${this.futureMoves[0].frameNumber} < ${frameNumber}`);
+                this.futureMoves.splice(0, 1);
+                continue;
+            }
+            const d = this.futureMoves[0];
+            switch (d.type) {
+                case 'move':
+                    this.lastPoint = d;
+                    this.internalMoveTo(d.x, d.y);
+                    break;
+                case 'split':
+                    this.internalSplit();
+                    break;
+            }
+            this.futureMoves.splice(0, 1);
             moved = true;
         }
         if (!moved && this.lastPoint) {
             this.internalMoveTo(this.lastPoint.x, this.lastPoint.y);
-        }
-        if (this.futureSplits[0] === frameNumber) {
-            this.internalSplit();
-            while (this.futureSplits.length > 0 &&
-                this.futureSplits[0] === frameNumber) {
-                this.futureSplits.splice(0, 1);
-            }
         }
     }
 }
@@ -363,6 +416,48 @@ exports.MovementSink = MovementSink;
 // Latency from command to action measured in frames.
 MovementSink.latency = 10;
 //# sourceMappingURL=movementSink.js.map
+
+/***/ }),
+
+/***/ 307:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NetworkSource = void 0;
+const log_1 = __webpack_require__(151);
+class NetworkSource {
+    constructor(sourceId, peerGroup, sink) {
+        this.futureMoves = [];
+        this.sink = sink;
+        peerGroup.addCallback(`from_${sourceId}`, (fromId, data) => {
+            const m = JSON.parse(data);
+            this.futureMoves.push(m);
+            this.futureMoves.sort((a, b) => a.frameNumber - b.frameNumber);
+        });
+    }
+    // When requested, sends update for frame `frameNumber` to sink.
+    update(frameNumber) {
+        for (const f of this.futureMoves) {
+            log_1.Log.info(`Network update: ${JSON.stringify(f)}`);
+            switch (f.type) {
+                case 'move':
+                    this.sink.moveTo(f.x, f.y, f.frameNumber);
+                    break;
+                case 'split':
+                    this.sink.split(f.frameNumber);
+                    break;
+            }
+        }
+        this.futureMoves.splice(0);
+    }
+    getSink() {
+        return this.sink;
+    }
+}
+exports.NetworkSource = NetworkSource;
+//# sourceMappingURL=networkSource.js.map
 
 /***/ }),
 
