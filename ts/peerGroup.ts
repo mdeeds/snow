@@ -125,6 +125,10 @@ export class PeerGroup implements PeerGroupInterface {
     this.meetCallbacks.push(f);
   }
 
+  getNumPeers(): number {
+    return this.peers.size;
+  }
+
   broadcast(name: string, data: string) {
     const message = `${name}:${data}`;
     Log.debug(`AAAAA broadcast (${this.id}) '${message}'`);

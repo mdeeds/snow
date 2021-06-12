@@ -1,4 +1,5 @@
 import { Ball } from './ball';
+import { Log } from './log';
 import { MouseSource } from './mouseSource';
 import { MovementSink } from './movementSink';
 import { MovementSource } from './movementSource';
@@ -15,10 +16,15 @@ export class Main {
   private frameNumber: number = 0;
   private peerGroup: PeerGroup;
   private isServer: boolean;
+  private metIds: Set<string> = new Set<string>();
 
   constructor(peerGroup: PeerGroup, playerNumber: number, hostId: string) {
     this.peerGroup = peerGroup;
     this.isServer = (peerGroup.getId() === hostId) || (!hostId);
+
+    Log.info(
+      `I am ${peerGroup.getId()} ${this.isServer ? 'server' : 'client'}`);
+
     const body = document.getElementsByTagName("body")[0];
     this.canvas = document.createElement("canvas");
     this.canvas.width = 1024;
@@ -39,13 +45,14 @@ export class Main {
     this.playerBalls.push(b);
 
     peerGroup.addMeetCallback((newId: string) => {
-      const newBall = new Ball(512, 512, 2);
-      newBall.c = 'red';
-      const newSink = new MovementSink(newBall, this.balls);
-      const ns = new NetworkSource(newId, peerGroup, newSink);
-      this.sources.push(ns);
-      this.playerBalls.push(newBall);
+      Log.info(`Meet callback: ${newId} -> ${this.peerGroup.getId()}`);
+      this.handleMeet(newId);
     });
+
+    this.peerGroup.addCallback('meet', (fromId: string, data: string) => {
+      Log.info(`Meet message: ${fromId} -> ${this.peerGroup.getId()}`);
+      this.handleMeet(fromId);
+    })
 
     if (!this.isServer) {
       peerGroup.addCallback('frameNumber', (fromId: string, data: string) => {
@@ -53,8 +60,31 @@ export class Main {
       });
     }
 
+    this.peerGroup.addListener((fromId: string, data: string) => {
+      Log.info(`(${this.peerGroup.getId()}) unhandled <- ${fromId} : ${data}`);
+    })
+
     body.appendChild(this.canvas);
     this.renderLoop();
+  }
+
+  private handleMeet(newId: string) {
+    if (this.metIds.has(newId)) {
+      return;
+    } else {
+      this.metIds.add(newId);
+    }
+    const newBall = new Ball(512, 512, 2);
+    newBall.c = 'red';
+    const newSink = new MovementSink(newBall, this.balls);
+    const ns = new NetworkSource(newId, this.peerGroup, newSink);
+    this.sources.push(ns);
+    this.playerBalls.push(newBall);
+    setTimeout(() => {
+      this.peerGroup.broadcast('meet', this.peerGroup.getId());
+      Log.info(`Broadcast ${this.peerGroup.getId()} meet -> ` +
+        this.peerGroup.getNumPeers());
+    }, 3000);
   }
 
   private bounce(a: Ball, b: Ball) {
@@ -84,7 +114,6 @@ export class Main {
       b.render(ctx);
     }
     for (const m of this.sources) {
-      // TODO: Not always this.sink.
       m.update(this.frameNumber);
     }
 

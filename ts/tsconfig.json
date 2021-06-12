@@ -8,5 +8,6 @@
     "skipLibCheck": true,
     "outDir": "../src",
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
   }
 }
