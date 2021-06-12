@@ -1,15 +1,7 @@
 import { Ball } from "./ball";
-
-class FuturePoint {
-  frame: number;
-  x: number;
-  y: number;
-  constructor(frame: number, x: number, y: number) {
-    this.frame = frame;
-    this.x = x;
-    this.y = y;
-  }
-}
+import { FutureMove } from "./futureMove";
+import { Log } from "./log";
+import { PeerGroup } from "./peerGroup";
 
 export class MovementSink {
   // Latency from command to action measured in frames.
@@ -18,10 +10,9 @@ export class MovementSink {
   private ball: Ball;
   private nonPlayerBalls: Set<Ball>;
   private lastAngle: number = 0;
-  private futureDestinations: FuturePoint[] = [];
-  private futureSplits: number[] = [];
+  private futureMoves: FutureMove[] = [];
   private lastFrameProcessed: number = 0;
-  private lastPoint: FuturePoint = null;
+  private lastPoint: FutureMove = null;
   constructor(ball: Ball, nonPlayerBalls: Set<Ball>) {
     this.ball = ball;
     this.nonPlayerBalls = nonPlayerBalls;
@@ -34,10 +25,10 @@ export class MovementSink {
   }
 
   moveTo(x: number, y: number, frameNumber: number) {
-    if (frameNumber >= this.lastFrameProcessed) {
-      this.futureDestinations.push(
-        new FuturePoint(frameNumber + MovementSink.latency, x, y));
-    }
+    const m = new FutureMove(frameNumber + MovementSink.latency, 'move');
+    m.x = x;
+    m.y = y;
+    this.futureMoves.push(m);
   }
 
   private internalMoveTo(x: number, y: number) {
@@ -57,9 +48,8 @@ export class MovementSink {
   }
 
   split(frameNumber: number) {
-    if (frameNumber >= this.lastFrameProcessed) {
-      this.futureSplits.push(frameNumber);
-    }
+    const m = new FutureMove(frameNumber + MovementSink.latency, 'split');
+    this.futureMoves.push(m);
   }
 
   private internalSplit() {
@@ -83,24 +73,28 @@ export class MovementSink {
 
   public update(frameNumber: number) {
     let moved = false;
-    while (this.futureDestinations.length > 0 &&
-      this.futureDestinations[0].frame === frameNumber) {
-      const d = this.futureDestinations[0];
-      this.lastPoint = d;
-      this.internalMoveTo(d.x, d.y);
-      this.futureDestinations.splice(0, 1);
+    while (this.futureMoves.length > 0 &&
+      this.futureMoves[0].frameNumber <= frameNumber) {
+      if (this.futureMoves[0].frameNumber < frameNumber) {
+        // Move arrived too late - ignore it.
+        this.futureMoves.splice(0, 1);
+        continue;
+      }
+      const d = this.futureMoves[0];
+      switch (d.type) {
+        case 'move':
+          this.lastPoint = d;
+          this.internalMoveTo(d.x, d.y);
+          break;
+        case 'split':
+          this.internalSplit();
+          break;
+      }
+      this.futureMoves.splice(0, 1);
       moved = true;
     }
     if (!moved && this.lastPoint) {
       this.internalMoveTo(this.lastPoint.x, this.lastPoint.y);
-    }
-
-    if (this.futureSplits[0] === frameNumber) {
-      this.internalSplit();
-      while (this.futureSplits.length > 0 &&
-        this.futureSplits[0] === frameNumber) {
-        this.futureSplits.splice(0, 1);
-      }
     }
   }
 }

@@ -9,14 +9,17 @@ export class Log {
     return !!url.searchParams.get('debug');
   }
 
+  private static nowString(): string {
+    return `${(window.performance.now() / 1000).toFixed(2)}`;
+  }
+
   static info(message: any) {
-    console.log(message);
+    console.log(`${Log.nowString()} ${message} `);
   }
 
   static debug(message: any) {
     if (Log.debugging) {
-      console.log(`${(window.performance.now() / 1000).toFixed(2)} ` +
-        `${message} `);
+      console.log(`${Log.nowString()} ${message} `);
     }
   }
 }

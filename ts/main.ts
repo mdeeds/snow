@@ -1,20 +1,24 @@
 import { Ball } from './ball';
 import { MouseSource } from './mouseSource';
 import { MovementSink } from './movementSink';
+import { MovementSource } from './movementSource';
+import { NetworkSource } from './networkSource';
 import { PeerGroup } from './peerGroup';
 
 const playerColors = ['blue', 'green', 'purple', 'red', 'orange', 'yellow'];
 
 export class Main {
   private balls: Set<Ball> = new Set<Ball>();
-  private movers: MouseSource[] = [];
-  private sink: MovementSink;
+  private sources: MovementSource[] = [];
   private playerBalls: Ball[] = [];
   private canvas: HTMLCanvasElement;
   private frameNumber: number = 0;
   private peerGroup: PeerGroup;
+  private isServer: boolean;
 
   constructor(peerGroup: PeerGroup, playerNumber: number, hostId: string) {
+    this.peerGroup = peerGroup;
+    this.isServer = (peerGroup.getId() === hostId) || (!hostId);
     const body = document.getElementsByTagName("body")[0];
     this.canvas = document.createElement("canvas");
     this.canvas.width = 1024;
@@ -29,10 +33,25 @@ export class Main {
     const b = new Ball(Math.random() * 1024, Math.random() * 1024,
       Ball.minRadius);
     b.c = playerColors[playerNumber];
-    this.sink = new MovementSink(b, this.balls);
-    const mouseSource = new MouseSource(this.canvas);
-    this.movers.push(mouseSource);
+    const sink = new MovementSink(b, this.balls);
+    const mouseSource = new MouseSource(this.canvas, peerGroup, sink);
+    this.sources.push(mouseSource);
     this.playerBalls.push(b);
+
+    peerGroup.addMeetCallback((newId: string) => {
+      const newBall = new Ball(512, 512, 2);
+      newBall.c = 'red';
+      const newSink = new MovementSink(newBall, this.balls);
+      const ns = new NetworkSource(newId, peerGroup, newSink);
+      this.sources.push(ns);
+      this.playerBalls.push(newBall);
+    });
+
+    if (!this.isServer) {
+      peerGroup.addCallback('frameNumber', (fromId: string, data: string) => {
+        this.frameNumber = parseInt(data);
+      });
+    }
 
     body.appendChild(this.canvas);
     this.renderLoop();
@@ -54,6 +73,9 @@ export class Main {
 
   renderLoop() {
     ++this.frameNumber;
+    if (this.isServer && this.frameNumber % 32 == 0) {
+      this.peerGroup.broadcast('frameNumber', this.frameNumber.toFixed(0));
+    }
     const ctx = this.canvas.getContext("2d");
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     for (const b of this.balls) {
@@ -61,10 +83,11 @@ export class Main {
       b.y += Math.random() - 0.5;
       b.render(ctx);
     }
-    for (const m of this.movers) {
-      m.update(this.frameNumber, this.sink);
+    for (const m of this.sources) {
+      // TODO: Not always this.sink.
+      m.update(this.frameNumber);
+      m.getSink().update(this.frameNumber);
     }
-    this.sink.update(this.frameNumber);
 
     const ballsToRemove: Ball[] = [];
     for (let b of this.playerBalls) {
