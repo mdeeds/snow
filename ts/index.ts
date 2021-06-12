@@ -14,6 +14,7 @@ async function go() {
     hostId = url.searchParams.get('join');
     group = await PeerGroup.make(p, hostId);
     playerNumber = parseInt(await group.ask(hostId, 'playerNumber:please'));
+    group.broadcast('myPlayerNumber', playerNumber.toFixed(0));
   } else {
     group = await PeerGroup.make(p);
     const b = document.createElement('div');

@@ -17,6 +17,7 @@ export class Main {
   private peerGroup: PeerGroup;
   private isServer: boolean;
   private metIds: Set<string> = new Set<string>();
+  private playerNumbers: Map<string, number> = new Map<string, number>();
 
   constructor(peerGroup: PeerGroup, playerNumber: number, hostId: string) {
     this.peerGroup = peerGroup;
@@ -58,7 +59,14 @@ export class Main {
       peerGroup.addCallback('frameNumber', (fromId: string, data: string) => {
         this.frameNumber = parseInt(data);
       });
+      this.playerNumbers.set(hostId, 0);
     }
+
+    this.peerGroup.addCallback('myPlayerNumber',
+      (fromId: string, data: string) => {
+        const playerNumber = parseInt(data);
+        this.playerNumbers.set(fromId, playerNumber);
+      })
 
     this.peerGroup.addListener((fromId: string, data: string) => {
       Log.info(`(${this.peerGroup.getId()}) unhandled <- ${fromId} : ${data}`);
@@ -75,7 +83,12 @@ export class Main {
       this.metIds.add(newId);
     }
     const newBall = new Ball(512, 512, 2);
-    newBall.c = 'red';
+    if (!this.playerNumbers.has(newId)) {
+      newBall.c = 'red';
+      //throw new Error(`No color yet!`);
+    } else {
+      newBall.c = playerColors[this.playerNumbers.get(newId)];
+    }
     const newSink = new MovementSink(newBall, this.balls);
     const ns = new NetworkSource(newId, this.peerGroup, newSink);
     this.sources.push(ns);
@@ -83,7 +96,7 @@ export class Main {
     setTimeout(() => {
       this.peerGroup.broadcast('meet', this.peerGroup.getId());
       Log.info(`Broadcast ${this.peerGroup.getId()} meet -> ` +
-        this.peerGroup.getNumPeers());
+        `${this.peerGroup.getNumPeers()}`);
     }, 3000);
   }
 
