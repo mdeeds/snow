@@ -29,9 +29,6 @@ export class NetworkSource implements MovementSource {
       }
     }
     this.futureMoves.splice(0);
-  }
-
-  getSink(): MovementSink {
-    return this.sink;
+    this.sink.update(frameNumber);
   }
 }

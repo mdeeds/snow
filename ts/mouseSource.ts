@@ -41,9 +41,6 @@ export class MouseSource implements MovementSource {
       this.peerGroup.broadcast(
         `from_${this.peerGroup.getId()}`, JSON.stringify(m));
     }
-  }
-
-  getSink(): MovementSink {
-    return this.sink;
+    this.sink.update(frameNumber);
   }
 }

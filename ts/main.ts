@@ -86,7 +86,6 @@ export class Main {
     for (const m of this.sources) {
       // TODO: Not always this.sink.
       m.update(this.frameNumber);
-      m.getSink().update(this.frameNumber);
     }
 
     const ballsToRemove: Ball[] = [];
@@ -111,6 +110,4 @@ export class Main {
 
     requestAnimationFrame(() => { this.renderLoop(); });
   }
-
-
 }
