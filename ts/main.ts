@@ -1,4 +1,5 @@
 import { Ball } from './ball';
+import { Hud } from './hud';
 import { Log } from './log';
 import { MouseSource } from './mouseSource';
 import { MovementSink } from './movementSink';
@@ -11,18 +12,20 @@ const playerColors = ['blue', 'green', 'purple', 'red', 'orange', 'yellow'];
 export class Main {
   private balls: Set<Ball> = new Set<Ball>();
   private sources: MovementSource[] = [];
-  private playerBalls: Ball[] = [];
   private canvas: HTMLCanvasElement;
   private frameNumber: number = 0;
   private peerGroup: PeerGroup;
   private isServer: boolean;
+  private hud: Hud;
   private metIds: Set<string> = new Set<string>();
-  private playerNumbers: Map<string, number> = new Map<string, number>();
+  private playerBalls: Map<string, Ball> = new Map<string, Ball>();
 
-  constructor(peerGroup: PeerGroup, playerNumber: number, hostId: string) {
+  constructor(peerGroup: PeerGroup, playerNumber: number, hostId: string,
+    hud: Hud) {
     this.peerGroup = peerGroup;
     this.isServer = (peerGroup.getId() === hostId) || (!hostId);
-
+    this.hud = hud;
+    this.hud.setNumberOfPlayers(1);
     Log.info(
       `I am ${peerGroup.getId()} ${this.isServer ? 'server' : 'client'}`);
 
@@ -31,7 +34,7 @@ export class Main {
     this.canvas.width = 1024;
     this.canvas.height = 1024;
 
-    for (let i = 0; i < 1000; ++i) {
+    for (let i = 0; i < 300; ++i) {
       const b = new Ball(Math.random() * 1024, Math.random() * 1024,
         Ball.minRadius);
       this.balls.add(b);
@@ -43,7 +46,13 @@ export class Main {
     const sink = new MovementSink(b, this.balls);
     const mouseSource = new MouseSource(this.canvas, peerGroup, sink);
     this.sources.push(mouseSource);
-    this.playerBalls.push(b);
+    this.playerBalls.set('', b);
+
+    const knownColors: string[] = [];
+    for (const b of this.playerBalls.values()) {
+      knownColors.push(b.c);
+    }
+    this.hud.setKnownColors(knownColors);
 
     peerGroup.addMeetCallback((newId: string) => {
       Log.info(`Meet callback: ${newId} -> ${this.peerGroup.getId()}`);
@@ -59,13 +68,24 @@ export class Main {
       peerGroup.addCallback('frameNumber', (fromId: string, data: string) => {
         this.frameNumber = parseInt(data);
       });
-      this.playerNumbers.set(hostId, 0);
     }
 
     this.peerGroup.addCallback('myPlayerNumber',
       (fromId: string, data: string) => {
         const playerNumber = parseInt(data);
-        this.playerNumbers.set(fromId, playerNumber);
+        let b: Ball;
+        if (this.playerBalls.has(fromId)) {
+          b = this.playerBalls.get(fromId);
+        } else {
+          b = new Ball(512, 512, Ball.minRadius);
+          this.playerBalls.set(fromId, b);
+        }
+        b.c = playerColors[playerNumber];
+        const knownColors: string[] = [];
+        for (const b of this.playerBalls.values()) {
+          knownColors.push(b.c);
+        }
+        this.hud.setKnownColors(knownColors);
       })
 
     this.peerGroup.addListener((fromId: string, data: string) => {
@@ -81,18 +101,24 @@ export class Main {
       return;
     } else {
       this.metIds.add(newId);
+      this.hud.setNumberOfPlayers(this.metIds.size + 1);
     }
-    const newBall = new Ball(512, 512, 2);
-    if (!this.playerNumbers.has(newId)) {
-      newBall.c = 'red';
-      //throw new Error(`No color yet!`);
+    let newBall: Ball;
+    if (!this.playerBalls.has(newId)) {
+      newBall = new Ball(512, 512, Ball.minRadius);
+      newBall.c = 'magenta';
+      this.playerBalls.set(newId, newBall);
+      const knownColors: string[] = [];
+      for (const b of this.playerBalls.values()) {
+        knownColors.push(b.c);
+      }
+      this.hud.setKnownColors(knownColors);
     } else {
-      newBall.c = playerColors[this.playerNumbers.get(newId)];
+      newBall = this.playerBalls.get(newId);
     }
     const newSink = new MovementSink(newBall, this.balls);
     const ns = new NetworkSource(newId, this.peerGroup, newSink);
     this.sources.push(ns);
-    this.playerBalls.push(newBall);
     setTimeout(() => {
       this.peerGroup.broadcast('meet', this.peerGroup.getId());
       Log.info(`Broadcast ${this.peerGroup.getId()} meet -> ` +
@@ -121,18 +147,28 @@ export class Main {
     }
     const ctx = this.canvas.getContext("2d");
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    const colorScores = new Map<string, number>();
     for (const b of this.balls) {
-      b.x += Math.random() - 0.5;
-      b.y += Math.random() - 0.5;
-      b.render(ctx);
+      b.render(ctx, this.frameNumber);
+      if (colorScores.has(b.c)) {
+        colorScores.set(b.c, colorScores.get(b.c) + b.r * b.r);
+      } else {
+        colorScores.set(b.c, b.r * b.r);
+      }
     }
     for (const m of this.sources) {
       m.update(this.frameNumber);
     }
 
     const ballsToRemove: Ball[] = [];
-    for (let b of this.playerBalls) {
-      b.render(ctx);
+    for (let b of this.playerBalls.values()) {
+      b.render(ctx, this.frameNumber);
+      if (colorScores.has(b.c)) {
+        colorScores.set(b.c, colorScores.get(b.c) + b.r * b.r);
+      } else {
+        colorScores.set(b.c, b.r * b.r);
+      }
       for (let o of this.balls) {
         if (o.touching(b)) {
           // You can always eat balls of your own color.
@@ -148,6 +184,9 @@ export class Main {
     }
     for (const b of ballsToRemove) {
       this.balls.delete(b);
+    }
+    for (const [color, score] of colorScores.entries()) {
+      this.hud.setColorScore(color, score);
     }
 
     requestAnimationFrame(() => { this.renderLoop(); });

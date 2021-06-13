@@ -1,11 +1,13 @@
 import Peer from "peerjs";
 import { PeerGroup } from "./peerGroup";
 import { Main } from "./main";
+import { Hud } from "./hud";
 
 console.log('Hello, World!');
 const url = new URL(document.URL);
 
 async function go() {
+  let hud = new Hud();
   let p = new Peer();
   let group: PeerGroup = null;
   let playerNumber = 0;
@@ -34,7 +36,7 @@ async function go() {
       return response;
     });
   }
-  const m = new Main(group, playerNumber, hostId);
+  const m = new Main(group, playerNumber, hostId, hud);
 }
 
 go();

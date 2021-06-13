@@ -32,7 +32,7 @@ export class MovementSink {
   }
 
   private internalMoveTo(x: number, y: number) {
-    const maxSpeed = 30 / Math.pow(this.ball.r, 1.5);
+    const maxSpeed = 60 / Math.pow(this.ball.r, 1.2);
     const dx = x - this.ball.x;
     const dy = y - this.ball.y;
     const d = this.distance(dx, dy);

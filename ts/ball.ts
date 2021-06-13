@@ -1,10 +1,11 @@
 export class Ball {
-  public static minRadius: number = 2;
+  public static minRadius: number = 4;
 
   x: number;
   y: number;
   r: number;
   c: string;
+  private rot: number = Math.random();
   constructor(x: number, y: number, r: number) {
     this.x = x;
     this.y = y;
@@ -21,7 +22,7 @@ export class Ball {
     return (dx2 + dy2) <= twor2;
   }
 
-  render(ctx: CanvasRenderingContext2D) {
+  render(ctx: CanvasRenderingContext2D, frameNumber: number) {
     if (this.r < 6 && ctx.fillStyle !== this.c) {
       ctx.fillStyle = this.c;
     } else {
@@ -31,14 +32,18 @@ export class Ball {
         this.r * 0.5,   // r1 
         this.x,  // x2
         this.y,  // y2
-        this.r);  // r2
+        this.r * 1.2);  // r2
       gradient.addColorStop(0, 'white');
       gradient.addColorStop(.9, this.c);
       gradient.addColorStop(1, 'darkgrey');
       ctx.fillStyle = gradient;
     }
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.r, -Math.PI, Math.PI);
+    const bulge = Math.sin(frameNumber / 20) * 0.1 + 1.0;
+    this.rot += 0.3 * Math.random() - 0.1;
+    ctx.ellipse(this.x, this.y,
+      this.r * bulge, this.r / bulge,
+      this.rot, -Math.PI, Math.PI);
     ctx.fill();
   }
 }
