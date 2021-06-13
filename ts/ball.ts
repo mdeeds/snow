@@ -1,4 +1,6 @@
-export class Ball {
+import { ImmutableBall } from "./immutableBall";
+
+export class Ball implements ImmutableBall {
   public static minRadius: number = 4;
 
   x: number;

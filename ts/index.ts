@@ -16,7 +16,6 @@ async function go() {
     hostId = url.searchParams.get('join');
     group = await PeerGroup.make(p, hostId);
     playerNumber = parseInt(await group.ask(hostId, 'playerNumber:please'));
-    group.broadcast('myPlayerNumber', playerNumber.toFixed(0));
   } else {
     group = await PeerGroup.make(p);
     const b = document.createElement('div');
@@ -28,15 +27,9 @@ async function go() {
     a.href = `${joinUrl.href}`;
     a.innerText = a.href;
     b.appendChild(a);
-    let otherPlayerNumber = 1;
-
-    group.addAnswer('playerNumber', (frmoId: string, message: string) => {
-      const response = `${otherPlayerNumber}`;
-      ++otherPlayerNumber;
-      return response;
-    });
   }
-  const m = new Main(group, playerNumber, hostId, hud);
+  const m = await Main.make(group, playerNumber, hostId, hud);
+  console.log('Ready.');
 }
 
 go();

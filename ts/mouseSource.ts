@@ -1,19 +1,21 @@
-import { FutureMove } from "./futureMove";
-import { MovementSink } from "./movementSink";
-import { MovementSource } from "./movementSource";
-import { PeerGroup } from "./peerGroup";
+import { ImmutableBall } from "./immutableBall";
+import { State } from "./state";
 
-export class MouseSource implements MovementSource {
+export class MouseSource {
   private x: number = 0;
   private y: number = 0;
   private split: boolean = false;
   private changed: boolean = true;
-  private peerGroup: PeerGroup;
-  private sink: MovementSink;
-  constructor(canvas: HTMLCanvasElement, peerGroup: PeerGroup,
-    sink: MovementSink) {
-    this.peerGroup = peerGroup;
-    this.sink = sink;
+  private state: State;
+  private playerId: string;
+  private ball: ImmutableBall;
+  private lastAngle: number = 0;
+
+  constructor(canvas: HTMLCanvasElement, playerId: string,
+    state: State, ball: ImmutableBall) {
+    this.playerId = playerId;
+    this.state = state;
+    this.ball = ball;
     canvas.addEventListener('mousemove', (ev: MouseEvent) => {
       this.x = ev.clientX - canvas.offsetLeft;
       this.y = ev.clientY - canvas.offsetTop;
@@ -23,24 +25,32 @@ export class MouseSource implements MovementSource {
       this.split = true;
     });
   }
+  private distance(dx: number, dy: number) {
+    const dx2 = dx * dx;
+    const dy2 = dy * dy;
+    return Math.sqrt(dx2 + dy2);
+  }
 
-  update(frameNumber: number) {
-    if (this.changed) {
-      this.changed = false;
-      const m = new FutureMove(frameNumber, 'move');
-      m.x = this.x;
-      m.y = this.y;
-      this.sink.moveTo(this.x, this.y, frameNumber);
-      this.peerGroup.broadcast(
-        `from_${this.peerGroup.getId()}`, JSON.stringify(m));
+  private internalMoveTo() {
+    const maxSpeed = 60 / Math.pow(this.ball.r, 1.2);
+    const dx = this.x - this.ball.x;
+    const dy = this.y - this.ball.y;
+    const d = this.distance(dx, dy);
+    if (d <= maxSpeed) {
+      this.state.setLocation(this.playerId, this.x, this.y);
+    } else {
+      const p = maxSpeed / d;
+      this.state.setLocation(this.playerId, p * dx, p * dy);
     }
+    this.lastAngle = Math.atan2(dy, dx);
+  }
+
+  update() {
+    this.internalMoveTo();
+    this.state.setLocation(this.playerId, this.x, this.y);
     if (this.split) {
-      const m = new FutureMove(frameNumber, 'split');
-      this.sink.split(frameNumber);
+      this.state.split(this.playerId, this.lastAngle);
       this.split = false;
-      this.peerGroup.broadcast(
-        `from_${this.peerGroup.getId()}`, JSON.stringify(m));
     }
-    this.sink.update(frameNumber);
   }
 }
