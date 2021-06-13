@@ -1,5 +1,11 @@
 body {
   background-color: black;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+#hud {
+  border: 5px solid pink;
+  padding: -5px;
 }
 
 canvas {
