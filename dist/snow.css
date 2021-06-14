@@ -10,6 +10,8 @@ body {
 
 canvas {
   cursor: crosshair;
+  margin:2px;
+  border: 2px solid grey;
 }
 
 #start {
