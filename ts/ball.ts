@@ -48,4 +48,22 @@ export class Ball implements ImmutableBall {
       this.rot, -Math.PI, Math.PI);
     ctx.fill();
   }
+
+  renderPlayer(ctx: CanvasRenderingContext2D, frameNumber: number) {
+    ctx.lineWidth = 1;
+    //  ^-(o.O)-^
+    ctx.strokeStyle =
+      ['green', 'yellow', 'white', 'blue', 'turquoise']
+      [Math.trunc(Math.random() * 5)];
+
+    ctx.beginPath();
+    ctx.moveTo(this.x + this.r * (Math.random() + 1), this.y);
+    for (let t = -Math.PI; t < Math.PI; t += 0.1) {
+      const rr = this.r * (Math.random() + 1);
+      ctx.lineTo(this.x + Math.cos(t) * rr, this.y + Math.sin(t) * rr);
+    }
+    ctx.stroke();
+
+    this.render(ctx, frameNumber);
+  }
 }

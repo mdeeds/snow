@@ -59,7 +59,7 @@ export class ClientState implements State {
       b.render(ctx, this.capturedState.frameNumber);
     }
     for (const b of this.capturedState.playerBalls.values()) {
-      b.render(ctx, this.capturedState.frameNumber);
+      b.renderPlayer(ctx, this.capturedState.frameNumber);
     }
   }
 }

@@ -178,7 +178,7 @@ export class ServerState implements State {
       b.render(ctx, this.frameNumber);
     }
     for (const b of this.playerBalls.values()) {
-      b.render(ctx, this.frameNumber);
+      b.renderPlayer(ctx, this.frameNumber);
     }
   }
 

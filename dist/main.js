@@ -46,6 +46,20 @@ class Ball {
         ctx.ellipse(this.x, this.y, this.r * bulge, this.r / bulge, this.rot, -Math.PI, Math.PI);
         ctx.fill();
     }
+    renderPlayer(ctx, frameNumber) {
+        ctx.lineWidth = 1;
+        //  ^-(o.O)-^
+        ctx.strokeStyle =
+            ['green', 'yellow', 'white', 'blue', 'turquoise'][Math.trunc(Math.random() * 5)];
+        ctx.beginPath();
+        ctx.moveTo(this.x + this.r * (Math.random() + 1), this.y);
+        for (let t = -Math.PI; t < Math.PI; t += 0.1) {
+            const rr = this.r * (Math.random() + 1);
+            ctx.lineTo(this.x + Math.cos(t) * rr, this.y + Math.sin(t) * rr);
+        }
+        ctx.stroke();
+        this.render(ctx, frameNumber);
+    }
 }
 exports.Ball = Ball;
 Ball.minRadius = 4;
@@ -185,7 +199,7 @@ class ClientState {
             b.render(ctx, this.capturedState.frameNumber);
         }
         for (const b of this.capturedState.playerBalls.values()) {
-            b.render(ctx, this.capturedState.frameNumber);
+            b.renderPlayer(ctx, this.capturedState.frameNumber);
         }
     }
 }
@@ -914,7 +928,7 @@ class ServerState {
             b.render(ctx, this.frameNumber);
         }
         for (const b of this.playerBalls.values()) {
-            b.render(ctx, this.frameNumber);
+            b.renderPlayer(ctx, this.frameNumber);
         }
     }
     update() {
