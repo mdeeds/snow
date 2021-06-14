@@ -19,6 +19,22 @@ export class MouseSource {
     canvas.addEventListener('click', (ev: MouseEvent) => {
       this.split = true;
     });
+
+    let lastTouchTime = 0;
+    canvas.addEventListener('touchstart', (ev: TouchEvent) => {
+      const thisTouchTime = window.performance.now();
+      if (thisTouchTime - lastTouchTime < 200) {
+        this.split = true;
+      }
+      lastTouchTime = thisTouchTime;
+      ev.preventDefault();
+    });
+
+    canvas.addEventListener('touchmove', (ev: TouchEvent) => {
+      this.x = ev.touches[0].clientX - canvas.offsetLeft;
+      this.y = ev.touches[0].clientY - canvas.offsetTop;
+      ev.preventDefault();
+    });
   }
 
   update() {
