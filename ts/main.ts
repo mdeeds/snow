@@ -22,10 +22,9 @@ export class Main {
     this.isServer = (peerGroup.getId() === hostId) || (!hostId);
     const body = document.getElementsByTagName("body")[0];
     this.canvas = document.createElement("canvas");
-    this.canvas.width = 1024;
-    this.canvas.height = 1024;
+    this.canvas.width = 600;
+    this.canvas.height = 600;
     this.hud = hud;
-    this.hud.setNumberOfPlayers(1);
     Log.info(
       `I am ${peerGroup.getId()} ${this.isServer ? 'server' : 'client'}`);
     this.peerGroup.addListener((fromId: string, data: string) => {
@@ -66,7 +65,7 @@ export class Main {
 
   public populate() {
     if (this.serverState) {
-      this.serverState.populate(300, 1024, 1024);
+      this.serverState.populate(300, 600, 600);
     }
   }
 

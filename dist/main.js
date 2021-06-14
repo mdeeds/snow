@@ -217,18 +217,10 @@ class Hud {
         this.colorScores = new Map();
         this.lastRender = 0;
         this.canvas = document.createElement('canvas');
-        this.canvas.width = 1024;
+        this.canvas.width = 600;
         this.canvas.height = 100;
         const body = document.getElementsByTagName('body')[0];
         body.appendChild(this.canvas);
-    }
-    setNumberOfPlayers(n) {
-        this.numberOfPlayers = n;
-        this.render();
-    }
-    setKnownColors(colors) {
-        this.knownColors = colors;
-        this.render();
     }
     setColorScore(color, score) {
         this.colorScores.set(color, score);
@@ -241,15 +233,11 @@ class Hud {
         this.lastRender = window.performance.now();
         const ctx = this.canvas.getContext('2d');
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        ctx.font = '30px monospace';
-        ctx.fillStyle = 'orange';
-        ctx.fillText(this.numberOfPlayers.toFixed(0), 5, 20);
-        ctx.fillText(this.knownColors.join(' '), 5, 60);
         ctx.font = '20px monospace';
         let y = 20;
         for (const [color, score] of this.colorScores.entries()) {
             ctx.fillStyle = color;
-            ctx.fillText(`${color}: ${score.toFixed(0)}`, 500, y);
+            ctx.fillText(`${color}: ${score.toFixed(0)}`, 5, y);
             y += 25;
         }
     }
@@ -387,10 +375,9 @@ class Main {
         this.isServer = (peerGroup.getId() === hostId) || (!hostId);
         const body = document.getElementsByTagName("body")[0];
         this.canvas = document.createElement("canvas");
-        this.canvas.width = 1024;
-        this.canvas.height = 1024;
+        this.canvas.width = 600;
+        this.canvas.height = 600;
         this.hud = hud;
-        this.hud.setNumberOfPlayers(1);
         log_1.Log.info(`I am ${peerGroup.getId()} ${this.isServer ? 'server' : 'client'}`);
         this.peerGroup.addListener((fromId, data) => {
             // Debugging only.
@@ -425,7 +412,7 @@ class Main {
     }
     populate() {
         if (this.serverState) {
-            this.serverState.populate(300, 1024, 1024);
+            this.serverState.populate(300, 600, 600);
         }
     }
     renderLoop() {
@@ -485,6 +472,20 @@ class MouseSource {
         });
         canvas.addEventListener('click', (ev) => {
             this.split = true;
+        });
+        let lastTouchTime = 0;
+        canvas.addEventListener('touchstart', (ev) => {
+            const thisTouchTime = window.performance.now();
+            if (thisTouchTime - lastTouchTime < 200) {
+                this.split = true;
+            }
+            lastTouchTime = thisTouchTime;
+            ev.preventDefault();
+        });
+        canvas.addEventListener('touchmove', (ev) => {
+            this.x = ev.touches[0].clientX - canvas.offsetLeft;
+            this.y = ev.touches[0].clientY - canvas.offsetTop;
+            ev.preventDefault();
         });
     }
     update() {
