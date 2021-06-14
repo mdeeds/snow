@@ -64,7 +64,13 @@ export class Main {
     });
   }
 
-  renderLoop() {
+  public populate() {
+    if (this.serverState) {
+      this.serverState.populate(300, 1024, 1024);
+    }
+  }
+
+  private renderLoop() {
     const ctx = this.canvas.getContext("2d");
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
