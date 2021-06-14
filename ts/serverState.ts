@@ -7,7 +7,6 @@ import { PeerGroup } from "./peerGroup";
 import { State } from "./state";
 
 const playerColors = ['blue', 'green', 'purple', 'red', 'orange', 'yellow'];
-const frameLatency = 10;  // Latency measured in frames
 
 export class ServerState implements State {
   private nonPlayerBalls: Set<Ball> = new Set<Ball>();
@@ -21,6 +20,9 @@ export class ServerState implements State {
     this.peerGroup = peerGroup;
     peerGroup.addAnswer('state', (fromId: string, message: string) => {
       return this.serialize();
+    });
+    peerGroup.addCallback('move', (fromId: string, data: string) => {
+      this.moveBuffer.push(JSON.parse(data));
     });
   }
 
@@ -70,7 +72,7 @@ export class ServerState implements State {
 
   public split(playerId: string, lastAngle: number) {
     const m = new FutureMove(
-      playerId, this.frameNumber + frameLatency, 'split');
+      playerId, this.frameNumber + CapturedState.frameLatency, 'split');
     m.lastAngle = lastAngle;
     this.moveBuffer.push(m);
   }
@@ -90,7 +92,8 @@ export class ServerState implements State {
   }
 
   public setLocation(playerId: string, x: number, y: number) {
-    const m = new FutureMove(playerId, this.frameNumber + frameLatency, 'move');
+    const m = new FutureMove(playerId,
+      this.frameNumber + CapturedState.frameLatency, 'move');
     m.x = x;
     m.y = y;
     this.moveBuffer.push(m);

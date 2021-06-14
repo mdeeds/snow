@@ -1,6 +1,8 @@
 import { Ball } from "./ball";
 
 export class CapturedState {
+  public static frameLatency = 10;  // Latency measured in frames
+
   public nonPlayerBalls: Set<Ball> = new Set<Ball>();
   public playerBalls: Map<string, Ball> = new Map<string, Ball>();
   public frameNumber: number;

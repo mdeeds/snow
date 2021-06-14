@@ -29,16 +29,18 @@ export class ClientState implements State {
 
   split(playerId: string, lastAngle: number): void {
     const move = new FutureMove(
-      playerId, this.capturedState.frameNumber, 'split');
+      playerId,
+      this.capturedState.frameNumber + CapturedState.frameLatency, 'split');
     move.lastAngle = lastAngle;
-    this.peerGroup.send(this.hostId, `update:${JSON.stringify(move)}`);
+    this.peerGroup.send(this.hostId, `move:${JSON.stringify(move)}`);
   }
   setLocation(playerId: string, x: number, y: number): void {
     const move = new FutureMove(
-      playerId, this.capturedState.frameNumber, 'move');
+      playerId,
+      this.capturedState.frameNumber + CapturedState.frameLatency, 'move');
     move.x = x;
     move.y = y;
-    this.peerGroup.send(this.hostId, `update:${JSON.stringify(move)}`);
+    this.peerGroup.send(this.hostId, `move:${JSON.stringify(move)}`);
   }
   getNonPlayerBalls(): IterableIterator<ImmutableBall> {
     return this.capturedState.nonPlayerBalls.values();
