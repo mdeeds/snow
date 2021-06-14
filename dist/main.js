@@ -475,6 +475,9 @@ class MouseSource {
         });
         let lastTouchTime = 0;
         canvas.addEventListener('touchstart', (ev) => {
+            if (ev.touches.length > 1) {
+                return;
+            }
             const thisTouchTime = window.performance.now();
             if (thisTouchTime - lastTouchTime < 200) {
                 this.split = true;
@@ -483,6 +486,9 @@ class MouseSource {
             ev.preventDefault();
         });
         canvas.addEventListener('touchmove', (ev) => {
+            if (ev.touches.length > 1) {
+                return;
+            }
             this.x = ev.touches[0].clientX - canvas.offsetLeft;
             this.y = ev.touches[0].clientY - canvas.offsetTop;
             ev.preventDefault();

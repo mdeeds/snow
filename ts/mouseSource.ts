@@ -22,6 +22,9 @@ export class MouseSource {
 
     let lastTouchTime = 0;
     canvas.addEventListener('touchstart', (ev: TouchEvent) => {
+      if (ev.touches.length > 1) {
+        return;
+      }
       const thisTouchTime = window.performance.now();
       if (thisTouchTime - lastTouchTime < 200) {
         this.split = true;
@@ -31,6 +34,9 @@ export class MouseSource {
     });
 
     canvas.addEventListener('touchmove', (ev: TouchEvent) => {
+      if (ev.touches.length > 1) {
+        return;
+      }
       this.x = ev.touches[0].clientX - canvas.offsetLeft;
       this.y = ev.touches[0].clientY - canvas.offsetTop;
       ev.preventDefault();
