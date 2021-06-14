@@ -3,17 +3,17 @@ import { Ball } from "./ball";
 export class CapturedState {
   public static frameLatency = 10;  // Latency measured in frames
 
-  public nonPlayerBalls: Set<Ball> = new Set<Ball>();
+  public nonPlayerBalls: Map<number, Ball> = new Map<number, Ball>();
   public playerBalls: Map<string, Ball> = new Map<string, Ball>();
   public frameNumber: number;
   private constructor() { }
 
-  static serialize(nonPlayerBalls: Set<Ball>,
+  static serialize(nonPlayerBalls: Map<number, Ball>,
     playerBalls: Map<string, Ball>,
     frameNumber: number) {
-    const npb: Ball[] = [];
-    for (const b of nonPlayerBalls) {
-      npb.push(b);
+    const npb: object[] = [];
+    for (const [k, v] of nonPlayerBalls.entries()) {
+      npb.push([k, v]);
     }
     const pb: object[] = [];
     for (const [k, v] of playerBalls) {
@@ -34,11 +34,15 @@ export class CapturedState {
 
   static merge(serialized: string, target: CapturedState) {
     const dict = JSON.parse(serialized);
-    target.nonPlayerBalls.clear();
-    for (const b of dict['nonPlayerBalls']) {
-      const ball: Ball = new Ball(b.x, b.y, b.r);
-      Object.assign(ball, b);
-      target.nonPlayerBalls.add(ball);
+    for (const [k, v] of dict['nonPlayerBalls']) {
+      let ball: Ball;
+      if (target.nonPlayerBalls.has(k)) {
+        ball = target.nonPlayerBalls.get(k);
+      } else {
+        ball = new Ball(v.x, v.y, v.r);
+        target.nonPlayerBalls.set(k, ball);
+      }
+      Object.assign(ball, v);
     }
     for (const [k, v] of dict['playerBalls']) {
       if (target.playerBalls.has(k)) {

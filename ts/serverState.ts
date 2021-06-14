@@ -9,12 +9,13 @@ import { State } from "./state";
 const playerColors = ['blue', 'green', 'purple', 'red', 'orange', 'yellow'];
 
 export class ServerState implements State {
-  private nonPlayerBalls: Set<Ball> = new Set<Ball>();
+  private nonPlayerBalls: Map<number, Ball> = new Map<number, Ball>();
   private playerBalls: Map<string, Ball> = new Map<string, Ball>();
   private frameNumber: number = 0;
 
   private moveBuffer: FutureMove[] = [];
   private peerGroup: PeerGroup;
+  private nextBall: number = 0;
 
   public constructor(peerGroup: PeerGroup) {
     this.peerGroup = peerGroup;
@@ -36,7 +37,7 @@ export class ServerState implements State {
       const b = new Ball(Math.random() * (width - 10) + 5,
         Math.random() * (height - 10) + 5,
         Ball.minRadius);
-      this.nonPlayerBalls.add(b);
+      this.nonPlayerBalls.set(this.nextBall++, b);
     }
   }
 
@@ -73,7 +74,7 @@ export class ServerState implements State {
 
     const b = new Ball(ball.x - dx, ball.y - dy, oldRadius);
     b.c = ball.c;
-    this.nonPlayerBalls.add(b);
+    this.nonPlayerBalls.set(this.nextBall++, b);
 
     ball.x += dx;
     ball.y += dy;
@@ -130,21 +131,21 @@ export class ServerState implements State {
       b.y = p * dy + b.y;
     }
 
-    const ballsToRemove: Ball[] = [];
-    for (const o of this.nonPlayerBalls.values()) {
+    const ballsToRemove: number[] = [];
+    for (const [i, o] of this.nonPlayerBalls.entries()) {
       if (o.touching(b)) {
         // You can always eat balls of your own color.
         // You can also eat balls that are no bigger than you.
         if (o.c === b.c || o.r <= b.r) {
           b.r = Math.sqrt(o.r * o.r + b.r * b.r);
-          ballsToRemove.push(o);
+          ballsToRemove.push(i);
         } else {
           this.bounce(b, o);
         }
       }
     }
-    for (const b of ballsToRemove) {
-      this.nonPlayerBalls.delete(b);
+    for (const i of ballsToRemove) {
+      this.nonPlayerBalls.delete(i);
     }
   };
 
