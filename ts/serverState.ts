@@ -12,6 +12,7 @@ export class ServerState implements State {
   private nonPlayerBalls: Map<number, Ball> = new Map<number, Ball>();
   private playerBalls: Map<string, Ball> = new Map<string, Ball>();
   private frameNumber: number = 0;
+  private ballsToDelete: number[] = [];
 
   private moveBuffer: FutureMove[] = [];
   private peerGroup: PeerGroup;
@@ -29,7 +30,8 @@ export class ServerState implements State {
 
   private serialize(): string {
     return CapturedState.serialize(
-      this.nonPlayerBalls, this.playerBalls, this.frameNumber);
+      this.nonPlayerBalls, this.playerBalls, this.frameNumber,
+      this.ballsToDelete);
   }
 
   public populate(numBalls: number, width: number, height: number) {
@@ -146,6 +148,7 @@ export class ServerState implements State {
     }
     for (const i of ballsToRemove) {
       this.nonPlayerBalls.delete(i);
+      this.ballsToDelete.push(i);
     }
   };
 
@@ -188,7 +191,8 @@ export class ServerState implements State {
       }
     }
     const serializedState = CapturedState.serialize(this.nonPlayerBalls,
-      this.playerBalls, this.frameNumber);
+      this.playerBalls, this.frameNumber, this.ballsToDelete);
     this.peerGroup.broadcast('updateState', serializedState);
+    this.ballsToDelete.splice(0);
   }
 }
