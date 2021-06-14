@@ -63,13 +63,14 @@ exports.CapturedState = void 0;
 const ball_1 = __webpack_require__(340);
 class CapturedState {
     constructor() {
-        this.nonPlayerBalls = new Set();
+        this.nonPlayerBalls = new Map();
         this.playerBalls = new Map();
+        this.deletedBalls = [];
     }
-    static serialize(nonPlayerBalls, playerBalls, frameNumber) {
+    static serialize(nonPlayerBalls, playerBalls, frameNumber, deletedBalls, addedBalls) {
         const npb = [];
-        for (const b of nonPlayerBalls) {
-            npb.push(b);
+        for (const ballId of addedBalls) {
+            npb.push([ballId, nonPlayerBalls.get(ballId)]);
         }
         const pb = [];
         for (const [k, v] of playerBalls) {
@@ -79,6 +80,7 @@ class CapturedState {
         dict['nonPlayerBalls'] = npb;
         dict['playerBalls'] = pb;
         dict['frameNumber'] = frameNumber;
+        dict['deletedBalls'] = deletedBalls;
         return JSON.stringify(dict);
     }
     static deserialize(serialized) {
@@ -88,11 +90,16 @@ class CapturedState {
     }
     static merge(serialized, target) {
         const dict = JSON.parse(serialized);
-        target.nonPlayerBalls.clear();
-        for (const b of dict['nonPlayerBalls']) {
-            const ball = new ball_1.Ball(b.x, b.y, b.r);
-            Object.assign(ball, b);
-            target.nonPlayerBalls.add(ball);
+        for (const [k, v] of dict['nonPlayerBalls']) {
+            let ball;
+            if (target.nonPlayerBalls.has(k)) {
+                ball = target.nonPlayerBalls.get(k);
+            }
+            else {
+                ball = new ball_1.Ball(v.x, v.y, v.r);
+                target.nonPlayerBalls.set(k, ball);
+            }
+            Object.assign(ball, v);
         }
         for (const [k, v] of dict['playerBalls']) {
             if (target.playerBalls.has(k)) {
@@ -105,6 +112,9 @@ class CapturedState {
             }
         }
         target.frameNumber = dict['frameNumber'];
+        for (const i of dict['deletedBalls']) {
+            target.nonPlayerBalls.delete(i);
+        }
     }
 }
 exports.CapturedState = CapturedState;
@@ -412,7 +422,7 @@ class Main {
     }
     populate() {
         if (this.serverState) {
-            this.serverState.populate(300, 600, 600);
+            this.serverState.populate(300, this.canvas.width, this.canvas.height);
         }
     }
     renderLoop() {
@@ -761,10 +771,13 @@ const log_1 = __webpack_require__(151);
 const playerColors = ['blue', 'green', 'purple', 'red', 'orange', 'yellow'];
 class ServerState {
     constructor(peerGroup) {
-        this.nonPlayerBalls = new Set();
+        this.nonPlayerBalls = new Map();
         this.playerBalls = new Map();
         this.frameNumber = 0;
+        this.ballsToDelete = [];
+        this.addedBalls = [];
         this.moveBuffer = [];
+        this.nextBall = 0;
         this.peerGroup = peerGroup;
         peerGroup.addAnswer('state', (fromId, message) => {
             return this.serialize();
@@ -774,12 +787,14 @@ class ServerState {
         });
     }
     serialize() {
-        return capturedState_1.CapturedState.serialize(this.nonPlayerBalls, this.playerBalls, this.frameNumber);
+        return capturedState_1.CapturedState.serialize(this.nonPlayerBalls, this.playerBalls, this.frameNumber, this.ballsToDelete, this.addedBalls);
     }
     populate(numBalls, width, height) {
         for (let i = 0; i < numBalls; ++i) {
-            const b = new ball_1.Ball(Math.random() * width, Math.random() * height, ball_1.Ball.minRadius);
-            this.nonPlayerBalls.add(b);
+            const b = new ball_1.Ball(Math.random() * (width - 10) + 5, Math.random() * (height - 10) + 5, ball_1.Ball.minRadius);
+            const ballId = this.nextBall++;
+            this.nonPlayerBalls.set(ballId, b);
+            this.addedBalls.push(ballId);
         }
     }
     addPlayer(playerId, playerNumber) {
@@ -791,18 +806,28 @@ class ServerState {
         this.playerBalls.set(playerId, b);
         log_1.Log.info(`New player: ${playerId}`);
     }
+    // Doesn't work.  Might work if we project onto the line between the 
+    // two balls.
+    splitCalc(x0, r0, r1, r2) {
+        const x1 = (x0 * r0 * r0 - (r1 * r2 * r2 + r2 * r2 * r2)) /
+            (r1 * r1 + r2 * r2);
+        const x2 = x1 + r1 + r2;
+        return [x1, x2];
+    }
     splitInternal(playerId, lastAngle) {
         const ball = this.playerBalls.get(playerId);
-        const oldRadius = ball.r * Math.sqrt(0.45);
-        const newRadius = ball.r * Math.sqrt(0.55);
-        if (newRadius < ball_1.Ball.minRadius) {
+        const newRadius = ball_1.Ball.minRadius;
+        const oldRadius = Math.sqrt(ball.r * ball.r - newRadius * newRadius);
+        if (oldRadius < ball_1.Ball.minRadius) {
             return;
         }
         const dx = ball.r * Math.cos(lastAngle);
         const dy = ball.r * Math.sin(lastAngle);
         const b = new ball_1.Ball(ball.x - dx, ball.y - dy, oldRadius);
         b.c = ball.c;
-        this.nonPlayerBalls.add(b);
+        const ballId = this.nextBall++;
+        this.nonPlayerBalls.set(ballId, b);
+        this.addedBalls.push(ballId);
         ball.x += dx;
         ball.y += dy;
         ball.r = newRadius;
@@ -852,21 +877,22 @@ class ServerState {
             b.y = p * dy + b.y;
         }
         const ballsToRemove = [];
-        for (const o of this.nonPlayerBalls.values()) {
+        for (const [i, o] of this.nonPlayerBalls.entries()) {
             if (o.touching(b)) {
                 // You can always eat balls of your own color.
                 // You can also eat balls that are no bigger than you.
                 if (o.c === b.c || o.r <= b.r) {
                     b.r = Math.sqrt(o.r * o.r + b.r * b.r);
-                    ballsToRemove.push(o);
+                    ballsToRemove.push(i);
                 }
                 else {
                     this.bounce(b, o);
                 }
             }
         }
-        for (const b of ballsToRemove) {
-            this.nonPlayerBalls.delete(b);
+        for (const i of ballsToRemove) {
+            this.nonPlayerBalls.delete(i);
+            this.ballsToDelete.push(i);
         }
     }
     ;
@@ -904,8 +930,10 @@ class ServerState {
                     this.splitInternal(move.playerId, move.lastAngle);
             }
         }
-        const serializedState = capturedState_1.CapturedState.serialize(this.nonPlayerBalls, this.playerBalls, this.frameNumber);
+        const serializedState = capturedState_1.CapturedState.serialize(this.nonPlayerBalls, this.playerBalls, this.frameNumber, this.ballsToDelete, this.addedBalls);
         this.peerGroup.broadcast('updateState', serializedState);
+        this.ballsToDelete.splice(0);
+        this.addedBalls.splice(0);
     }
 }
 exports.ServerState = ServerState;

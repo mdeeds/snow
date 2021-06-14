@@ -12,10 +12,10 @@ export class CapturedState {
   static serialize(nonPlayerBalls: Map<number, Ball>,
     playerBalls: Map<string, Ball>,
     frameNumber: number,
-    deletedBalls: number[]) {
+    deletedBalls: number[], addedBalls: number[]) {
     const npb: object[] = [];
-    for (const [k, v] of nonPlayerBalls.entries()) {
-      npb.push([k, v]);
+    for (const ballId of addedBalls) {
+      npb.push([ballId, nonPlayerBalls.get(ballId)]);
     }
     const pb: object[] = [];
     for (const [k, v] of playerBalls) {

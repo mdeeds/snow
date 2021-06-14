@@ -13,6 +13,7 @@ export class ServerState implements State {
   private playerBalls: Map<string, Ball> = new Map<string, Ball>();
   private frameNumber: number = 0;
   private ballsToDelete: number[] = [];
+  private addedBalls: number[] = [];
 
   private moveBuffer: FutureMove[] = [];
   private peerGroup: PeerGroup;
@@ -31,7 +32,7 @@ export class ServerState implements State {
   private serialize(): string {
     return CapturedState.serialize(
       this.nonPlayerBalls, this.playerBalls, this.frameNumber,
-      this.ballsToDelete);
+      this.ballsToDelete, this.addedBalls);
   }
 
   public populate(numBalls: number, width: number, height: number) {
@@ -39,7 +40,9 @@ export class ServerState implements State {
       const b = new Ball(Math.random() * (width - 10) + 5,
         Math.random() * (height - 10) + 5,
         Ball.minRadius);
-      this.nonPlayerBalls.set(this.nextBall++, b);
+      const ballId = this.nextBall++;
+      this.nonPlayerBalls.set(ballId, b);
+      this.addedBalls.push(ballId);
     }
   }
 
@@ -76,7 +79,9 @@ export class ServerState implements State {
 
     const b = new Ball(ball.x - dx, ball.y - dy, oldRadius);
     b.c = ball.c;
-    this.nonPlayerBalls.set(this.nextBall++, b);
+    const ballId = this.nextBall++;
+    this.nonPlayerBalls.set(ballId, b);
+    this.addedBalls.push(ballId);
 
     ball.x += dx;
     ball.y += dy;
@@ -191,8 +196,9 @@ export class ServerState implements State {
       }
     }
     const serializedState = CapturedState.serialize(this.nonPlayerBalls,
-      this.playerBalls, this.frameNumber, this.ballsToDelete);
+      this.playerBalls, this.frameNumber, this.ballsToDelete, this.addedBalls);
     this.peerGroup.broadcast('updateState', serializedState);
     this.ballsToDelete.splice(0);
+    this.addedBalls.splice(0);
   }
 }
