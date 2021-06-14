@@ -14,7 +14,7 @@ class Ball {
         this.x = x;
         this.y = y;
         this.r = r;
-        this.c = 'lightgrey';
+        this.c = Ball.defatulColor;
     }
     touching(other) {
         const twor2 = other.r * other.r + this.r * this.r;
@@ -36,8 +36,9 @@ class Ball {
             this.y, // y2
             this.r * 1.2); // r2
             gradient.addColorStop(0, 'white');
+            gradient.addColorStop(.2, this.c);
             gradient.addColorStop(.9, this.c);
-            gradient.addColorStop(1, 'darkgrey');
+            gradient.addColorStop(1, '#333');
             ctx.fillStyle = gradient;
         }
         ctx.beginPath();
@@ -63,6 +64,7 @@ class Ball {
 }
 exports.Ball = Ball;
 Ball.minRadius = 4;
+Ball.defatulColor = 'lightgrey';
 //# sourceMappingURL=ball.js.map
 
 /***/ }),
@@ -236,8 +238,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Hud = void 0;
 class Hud {
     constructor() {
-        this.numberOfPlayers = 0;
-        this.knownColors = [];
+        this.timerEndTime = null;
         this.colorScores = new Map();
         this.lastRender = 0;
         this.canvas = document.createElement('canvas');
@@ -250,19 +251,38 @@ class Hud {
         this.colorScores.set(color, score);
         this.render();
     }
+    setTimerEndTime(endTimeMs) {
+        this.timerEndTime = endTimeMs;
+    }
     render() {
-        if (window.performance.now() - this.lastRender < 10) {
+        const nowTime = window.performance.now();
+        if (nowTime - this.lastRender < 100) {
             return;
         }
-        this.lastRender = window.performance.now();
+        this.lastRender = nowTime;
         const ctx = this.canvas.getContext('2d');
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        if (this.timerEndTime) {
+            ctx.fillStyle = 'green';
+            const remainingMs = Math.max(0, this.timerEndTime - nowTime);
+            const totalSecondsRemaining = Math.ceil(remainingMs / 1000);
+            const remainingS = totalSecondsRemaining % 60;
+            const remainingM = Math.floor(totalSecondsRemaining / 60);
+            const timerMessage = remainingM.toFixed(0).padStart(2, '0') + ':' +
+                remainingS.toFixed(0).padStart(2, '0');
+            ctx.fillText(timerMessage, this.canvas.width - 100, 20);
+        }
         ctx.font = '20px monospace';
         let y = 20;
+        let x = 5;
         for (const [color, score] of this.colorScores.entries()) {
             ctx.fillStyle = color;
-            ctx.fillText(`${color}: ${score.toFixed(0)}`, 5, y);
+            ctx.fillText(`${color}: ${score.toFixed(0)}`, x, y);
             y += 25;
+            if (y >= this.canvas.height) {
+                y = 20;
+                x += 200;
+            }
         }
     }
 }
@@ -328,7 +348,12 @@ function go() {
             startButton.innerText = 'Start';
             startButton.addEventListener('click', (ev) => {
                 m.populate();
-                joinBox.remove();
+                hud.setTimerEndTime(window.performance.now() + 2 * 60000);
+                joinBox.hidden = true;
+                setTimeout(() => {
+                    joinBox.hidden = false;
+                    m.stop();
+                }, 2 * 60000);
             });
             joinBox.appendChild(startButton);
         }
@@ -437,6 +462,11 @@ class Main {
     populate() {
         if (this.serverState) {
             this.serverState.populate(300, this.canvas.width, this.canvas.height);
+        }
+    }
+    stop() {
+        if (this.serverState) {
+            this.serverState.stop();
         }
     }
     renderLoop() {
@@ -782,7 +812,15 @@ const ball_1 = __webpack_require__(340);
 const capturedState_1 = __webpack_require__(158);
 const futureMove_1 = __webpack_require__(456);
 const log_1 = __webpack_require__(151);
-const playerColors = ['blue', 'green', 'purple', 'red', 'orange', 'yellow'];
+const playerColors = [
+    'Chartreuse',
+    'Fuchsia',
+    'Gold',
+    'Crimson',
+    'Yellow',
+    'DeepPink',
+    'Aqua'
+];
 class ServerState {
     constructor(peerGroup) {
         this.nonPlayerBalls = new Map();
@@ -804,11 +842,32 @@ class ServerState {
         return capturedState_1.CapturedState.serialize(this.nonPlayerBalls, this.playerBalls, this.frameNumber, this.ballsToDelete, this.addedBalls);
     }
     populate(numBalls, width, height) {
+        for (let i of this.nonPlayerBalls.keys()) {
+            this.ballsToDelete.push(i);
+        }
+        for (let i of this.ballsToDelete) {
+            this.nonPlayerBalls.delete(i);
+        }
+        for (let b of this.playerBalls.values()) {
+            b.r = ball_1.Ball.minRadius;
+        }
         for (let i = 0; i < numBalls; ++i) {
             const b = new ball_1.Ball(Math.random() * (width - 10) + 5, Math.random() * (height - 10) + 5, ball_1.Ball.minRadius);
             const ballId = this.nextBall++;
             this.nonPlayerBalls.set(ballId, b);
             this.addedBalls.push(ballId);
+        }
+    }
+    stop() {
+        const ballsToRemove = [];
+        for (const [i, o] of this.nonPlayerBalls.entries()) {
+            if (o.c === ball_1.Ball.defatulColor) {
+                ballsToRemove.push(i);
+            }
+        }
+        for (const i of ballsToRemove) {
+            this.nonPlayerBalls.delete(i);
+            this.ballsToDelete.push(i);
         }
     }
     addPlayer(playerId, playerNumber) {

@@ -2,6 +2,7 @@ import { ImmutableBall } from "./immutableBall";
 
 export class Ball implements ImmutableBall {
   public static minRadius: number = 4;
+  public static defatulColor: string = 'lightgrey';
 
   x: number;
   y: number;
@@ -12,7 +13,7 @@ export class Ball implements ImmutableBall {
     this.x = x;
     this.y = y;
     this.r = r;
-    this.c = 'lightgrey';
+    this.c = Ball.defatulColor;
   }
 
   touching(other: Ball) {
@@ -36,8 +37,9 @@ export class Ball implements ImmutableBall {
         this.y,  // y2
         this.r * 1.2);  // r2
       gradient.addColorStop(0, 'white');
+      gradient.addColorStop(.2, this.c);
       gradient.addColorStop(.9, this.c);
-      gradient.addColorStop(1, 'darkgrey');
+      gradient.addColorStop(1, '#333');
       ctx.fillStyle = gradient;
     }
     ctx.beginPath();

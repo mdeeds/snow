@@ -39,12 +39,15 @@ async function go() {
     startButton.innerText = 'Start';
     startButton.addEventListener('click', (ev) => {
       m.populate();
-      joinBox.remove();
+      hud.setTimerEndTime(window.performance.now() + 2 * 60000);
+      joinBox.hidden = true;
+      setTimeout(() => {
+        joinBox.hidden = false;
+        m.stop();
+      }, 2 * 60000);
     });
     joinBox.appendChild(startButton);
   }
-
-
   console.log('Ready.');
 }
 

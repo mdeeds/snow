@@ -6,7 +6,14 @@ import { Log } from "./log";
 import { PeerGroup } from "./peerGroup";
 import { State } from "./state";
 
-const playerColors = ['blue', 'green', 'purple', 'red', 'orange', 'yellow'];
+const playerColors = [
+  'Chartreuse',
+  'Fuchsia',
+  'Gold',
+  'Crimson',
+  'Yellow',
+  'DeepPink',
+  'Aqua'];
 
 export class ServerState implements State {
   private nonPlayerBalls: Map<number, Ball> = new Map<number, Ball>();
@@ -36,6 +43,16 @@ export class ServerState implements State {
   }
 
   public populate(numBalls: number, width: number, height: number) {
+    for (let i of this.nonPlayerBalls.keys()) {
+      this.ballsToDelete.push(i);
+    }
+    for (let i of this.ballsToDelete) {
+      this.nonPlayerBalls.delete(i);
+    }
+    for (let b of this.playerBalls.values()) {
+      b.r = Ball.minRadius;
+    }
+
     for (let i = 0; i < numBalls; ++i) {
       const b = new Ball(Math.random() * (width - 10) + 5,
         Math.random() * (height - 10) + 5,
@@ -43,6 +60,19 @@ export class ServerState implements State {
       const ballId = this.nextBall++;
       this.nonPlayerBalls.set(ballId, b);
       this.addedBalls.push(ballId);
+    }
+  }
+
+  public stop() {
+    const ballsToRemove: number[] = [];
+    for (const [i, o] of this.nonPlayerBalls.entries()) {
+      if (o.c === Ball.defatulColor) {
+        ballsToRemove.push(i);
+      }
+    }
+    for (const i of ballsToRemove) {
+      this.nonPlayerBalls.delete(i);
+      this.ballsToDelete.push(i);
     }
   }
 
