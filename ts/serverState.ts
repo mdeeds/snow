@@ -148,6 +148,7 @@ export class ServerState implements State {
           ballsToRemove.push(i);
         } else {
           this.bounce(b, o);
+          this.addedBalls.push(i);
         }
       }
     }

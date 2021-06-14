@@ -887,6 +887,7 @@ class ServerState {
                 }
                 else {
                     this.bounce(b, o);
+                    this.addedBalls.push(i);
                 }
             }
         }
