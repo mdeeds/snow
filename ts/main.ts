@@ -65,7 +65,7 @@ export class Main {
 
   public populate() {
     if (this.serverState) {
-      this.serverState.populate(300, 600, 600);
+      this.serverState.populate(300, this.canvas.width, this.canvas.height);
     }
   }
 

@@ -33,7 +33,8 @@ export class ServerState implements State {
 
   public populate(numBalls: number, width: number, height: number) {
     for (let i = 0; i < numBalls; ++i) {
-      const b = new Ball(Math.random() * width, Math.random() * height,
+      const b = new Ball(Math.random() * (width - 10) + 5,
+        Math.random() * (height - 10) + 5,
         Ball.minRadius);
       this.nonPlayerBalls.add(b);
     }
@@ -49,12 +50,21 @@ export class ServerState implements State {
     Log.info(`New player: ${playerId}`);
   }
 
+  // Doesn't work.  Might work if we project onto the line between the 
+  // two balls.
+  private splitCalc(x0: number, r0: number, r1: number, r2: number): number[] {
+    const x1 = (x0 * r0 * r0 - (r1 * r2 * r2 + r2 * r2 * r2)) /
+      (r1 * r1 + r2 * r2);
+    const x2 = x1 + r1 + r2;
+    return [x1, x2];
+  }
+
   private splitInternal(playerId: string, lastAngle: number) {
     const ball = this.playerBalls.get(playerId);
 
-    const oldRadius = ball.r * Math.sqrt(0.45);
-    const newRadius = ball.r * Math.sqrt(0.55);
-    if (newRadius < Ball.minRadius) {
+    const newRadius = Ball.minRadius;
+    const oldRadius = Math.sqrt(ball.r * ball.r - newRadius * newRadius);
+    if (oldRadius < Ball.minRadius) {
       return;
     }
 
