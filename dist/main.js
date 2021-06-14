@@ -909,6 +909,19 @@ class ServerState {
             this.nonPlayerBalls.delete(i);
             this.ballsToDelete.push(i);
         }
+        // Leech
+        for (const [otherId, o] of this.playerBalls.entries()) {
+            if (o.r > b.r || otherId === playerId) {
+                continue;
+            }
+            const dx = o.x - b.x;
+            const dy = o.y - b.y;
+            if (this.distance(dx, dy) < o.r + b.r) {
+                o.r = Math.sqrt(o.r * o.r + 1);
+                b.r = Math.sqrt(b.r * b.r - 1);
+                this.bounce(b, o);
+            }
+        }
     }
     ;
     getNonPlayerBalls() {
