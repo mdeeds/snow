@@ -56,7 +56,7 @@ export class Main {
     }
 
     self.source = new MouseSource(self.canvas, self.peerGroup.getId(),
-      self.state, self.state.getBall(peerGroup.getId()));
+      self.state);
 
     self.renderLoop();
     return new Promise<Main>((resolve, reject) => {

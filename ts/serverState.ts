@@ -99,10 +99,26 @@ export class ServerState implements State {
     this.moveBuffer.push(m);
   }
 
+  private distance(dx: number, dy: number) {
+    const dx2 = dx * dx;
+    const dy2 = dy * dy;
+    return Math.sqrt(dx2 + dy2);
+  }
+
   private setLocationInternal(playerId: string, x: number, y: number) {
     const b = this.playerBalls.get(playerId);
-    b.x = x;
-    b.y = y;
+    const maxSpeed = 60 / Math.pow(b.r, 1.2);
+    const dx = x - b.x;
+    const dy = y - b.y;
+    const d = this.distance(dx, dy);
+    if (d <= maxSpeed) {
+      b.x = x;
+      b.y = y;
+    } else {
+      const p = maxSpeed / d;
+      b.x = p * dx + b.x;
+      b.y = p * dy + b.y;
+    }
 
     const ballsToRemove: Ball[] = [];
     for (const o of this.nonPlayerBalls.values()) {
