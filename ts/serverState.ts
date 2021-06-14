@@ -1,7 +1,9 @@
 import { Ball } from "./ball";
+import { CapturedState } from "./capturedState";
 import { FutureMove } from "./futureMove";
 import { ImmutableBall } from "./immutableBall";
 import { Log } from "./log";
+import { PeerGroup } from "./peerGroup";
 import { State } from "./state";
 
 const playerColors = ['blue', 'green', 'purple', 'red', 'orange', 'yellow'];
@@ -11,7 +13,21 @@ export class ServerState implements State {
   private nonPlayerBalls: Set<Ball> = new Set<Ball>();
   private playerBalls: Map<string, Ball> = new Map<string, Ball>();
   private frameNumber: number = 0;
+
   private moveBuffer: FutureMove[] = [];
+  private peerGroup: PeerGroup;
+
+  public constructor(peerGroup: PeerGroup) {
+    this.peerGroup = peerGroup;
+    peerGroup.addAnswer('state', (fromId: string, message: string) => {
+      return this.serialize();
+    });
+  }
+
+  private serialize(): string {
+    return CapturedState.serialize(
+      this.nonPlayerBalls, this.playerBalls, this.frameNumber);
+  }
 
   public populate(numBalls: number, width: number, height: number) {
     for (let i = 0; i < numBalls; ++i) {
@@ -141,5 +157,8 @@ export class ServerState implements State {
           this.splitInternal(move.playerId, move.lastAngle);
       }
     }
+    const serializedState = CapturedState.serialize(this.nonPlayerBalls,
+      this.playerBalls, this.frameNumber);
+    this.peerGroup.broadcast('updateState', serializedState);
   }
 }

@@ -41,7 +41,7 @@ export class Main {
     const self = new Main(peerGroup, playerNumber, hostId, hud);
 
     if (self.isServer) {
-      self.serverState = new ServerState();
+      self.serverState = new ServerState(peerGroup);
       self.state = self.serverState;
       self.serverState.addPlayer(peerGroup.getId(), 0);
       let otherPlayerNumber = 1;
@@ -52,11 +52,7 @@ export class Main {
         return response;
       });
     } else {
-      // // TODO: Move to serverState.ts
-      // self.state = await ClientState.fetch(hostId);
-      // peerGroup.addCallback('frameNumber', (fromId: string, data: string) => {
-      //   self.frameNumber = parseInt(data);
-      // });
+      self.state = await ClientState.fetchState(peerGroup, hostId);
     }
 
     self.source = new MouseSource(self.canvas, self.peerGroup.getId(),
