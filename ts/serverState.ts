@@ -261,7 +261,7 @@ export class ServerState implements State {
       Sfx.play(s);
     }
 
-    if (Math.random() < 0.02 && !this.isStopped) {
+    if (Math.random() < 0.05 && !this.isStopped) {
       const b = new Ball(Math.random() * 600,
         Math.random() * 600, Ball.minRadius);
       b.c = Ball.defatulColor;
