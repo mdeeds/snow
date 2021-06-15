@@ -261,6 +261,14 @@ export class ServerState implements State {
       Sfx.play(s);
     }
 
+    if (Math.random() < 0.1) {
+      const b = new Ball(Math.random() * 600,
+        Math.random() * 600, Ball.minRadius);
+      b.c = Ball.defatulColor;
+      this.nonPlayerBalls.set(this.nextBall++, b);
+      this.changedBalls.push(this.nextBall - 1);
+    }
+
     const serializedState = CapturedState.serialize(this.nonPlayerBalls,
       this.playerBalls, this.frameNumber, this.ballsToDelete,
       this.changedBalls, this.sfx);

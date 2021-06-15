@@ -1051,6 +1051,12 @@ class ServerState {
         for (const s of this.sfx) {
             sfx_1.Sfx.play(s);
         }
+        if (Math.random() < 0.1) {
+            const b = new ball_1.Ball(Math.random() * 600, Math.random() * 600, ball_1.Ball.minRadius);
+            b.c = ball_1.Ball.defatulColor;
+            this.nonPlayerBalls.set(this.nextBall++, b);
+            this.changedBalls.push(this.nextBall - 1);
+        }
         const serializedState = capturedState_1.CapturedState.serialize(this.nonPlayerBalls, this.playerBalls, this.frameNumber, this.ballsToDelete, this.changedBalls, this.sfx);
         this.peerGroup.broadcast('updateState', serializedState);
         this.ballsToDelete.splice(0);
