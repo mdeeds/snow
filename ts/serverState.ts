@@ -27,6 +27,7 @@ export class ServerState implements State {
   private moveBuffer: FutureMove[] = [];
   private peerGroup: PeerGroup;
   private nextBall: number = 0;
+  private isStopped: boolean = false;
 
   public constructor(peerGroup: PeerGroup) {
     this.peerGroup = peerGroup;
@@ -63,6 +64,7 @@ export class ServerState implements State {
       this.nonPlayerBalls.set(ballId, b);
       this.changedBalls.push(ballId);
     }
+    this.isStopped = false;
   }
 
   public stop() {
@@ -76,6 +78,7 @@ export class ServerState implements State {
       this.nonPlayerBalls.delete(i);
       this.ballsToDelete.push(i);
     }
+    this.isStopped = true;
   }
 
   public addPlayer(playerId: string, playerNumber: number) {
@@ -174,6 +177,9 @@ export class ServerState implements State {
       const p = maxSpeed / d;
       b.x = p * dx + b.x;
       b.y = p * dy + b.y;
+    }
+    if (this.isStopped) {
+      return;
     }
 
     const ballsToRemove: number[] = [];

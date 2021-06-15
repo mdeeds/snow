@@ -1,8 +1,8 @@
 import { State } from "./state";
 
 export class MouseSource {
-  private x: number = 0;
-  private y: number = 0;
+  private x: number = Math.random() * 100;
+  private y: number = Math.random() * 100;
   private split: boolean = false;
   private state: State;
   private playerId: string;

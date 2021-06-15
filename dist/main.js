@@ -528,8 +528,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.MouseSource = void 0;
 class MouseSource {
     constructor(canvas, playerId, state) {
-        this.x = 0;
-        this.y = 0;
+        this.x = Math.random() * 100;
+        this.y = Math.random() * 100;
         this.split = false;
         this.lastAngle = 0;
         this.playerId = playerId;
@@ -846,6 +846,7 @@ class ServerState {
         this.sfx = [];
         this.moveBuffer = [];
         this.nextBall = 0;
+        this.isStopped = false;
         this.peerGroup = peerGroup;
         peerGroup.addAnswer('state', (fromId, message) => {
             return this.serialize();
@@ -873,6 +874,7 @@ class ServerState {
             this.nonPlayerBalls.set(ballId, b);
             this.changedBalls.push(ballId);
         }
+        this.isStopped = false;
     }
     stop() {
         const ballsToRemove = [];
@@ -885,6 +887,7 @@ class ServerState {
             this.nonPlayerBalls.delete(i);
             this.ballsToDelete.push(i);
         }
+        this.isStopped = true;
     }
     addPlayer(playerId, playerNumber) {
         if (this.playerBalls.has(playerId)) {
@@ -970,6 +973,9 @@ class ServerState {
             const p = maxSpeed / d;
             b.x = p * dx + b.x;
             b.y = p * dy + b.y;
+        }
+        if (this.isStopped) {
+            return;
         }
         const ballsToRemove = [];
         for (const [i, o] of this.nonPlayerBalls.entries()) {
