@@ -26,6 +26,8 @@ export class Ball implements ImmutableBall {
   }
 
   render(ctx: CanvasRenderingContext2D, frameNumber: number) {
+    this.x = Math.min(600, Math.max(0, this.x));
+    this.y = Math.min(600, Math.max(0, this.y));
     if (this.r < 6 && ctx.fillStyle !== this.c) {
       ctx.fillStyle = this.c;
     } else {
