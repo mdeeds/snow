@@ -1051,7 +1051,7 @@ class ServerState {
         for (const s of this.sfx) {
             sfx_1.Sfx.play(s);
         }
-        if (Math.random() < 0.1) {
+        if (Math.random() < 0.02 && !this.isStopped) {
             const b = new ball_1.Ball(Math.random() * 600, Math.random() * 600, ball_1.Ball.minRadius);
             b.c = ball_1.Ball.defatulColor;
             this.nonPlayerBalls.set(this.nextBall++, b);
