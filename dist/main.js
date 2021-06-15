@@ -846,7 +846,7 @@ class ServerState {
         this.sfx = [];
         this.moveBuffer = [];
         this.nextBall = 0;
-        this.isStopped = false;
+        this.isStopped = true;
         this.peerGroup = peerGroup;
         peerGroup.addAnswer('state', (fromId, message) => {
             return this.serialize();

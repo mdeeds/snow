@@ -27,7 +27,7 @@ export class ServerState implements State {
   private moveBuffer: FutureMove[] = [];
   private peerGroup: PeerGroup;
   private nextBall: number = 0;
-  private isStopped: boolean = false;
+  private isStopped: boolean = true;
 
   public constructor(peerGroup: PeerGroup) {
     this.peerGroup = peerGroup;
