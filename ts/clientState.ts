@@ -3,6 +3,7 @@ import { CapturedState } from "./capturedState";
 import { FutureMove } from "./futureMove";
 import { ImmutableBall } from "./immutableBall";
 import { PeerGroup } from "./peerGroup";
+import { Sfx } from "./sfx";
 import { State } from "./state";
 
 export class ClientState implements State {
@@ -16,6 +17,9 @@ export class ClientState implements State {
     this.peerGroup.addCallback('updateState',
       (fromId: string, data: string) => {
         CapturedState.merge(data, this.capturedState);
+        for (const s of this.capturedState.sfx.values()) {
+          Sfx.play(s);
+        }
       });
   }
 

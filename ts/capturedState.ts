@@ -7,12 +7,13 @@ export class CapturedState {
   public playerBalls: Map<string, Ball> = new Map<string, Ball>();
   public frameNumber: number;
   public deletedBalls: number[] = [];
+  public sfx: Set<string> = new Set<string>();
   private constructor() { }
 
   static serialize(nonPlayerBalls: Map<number, Ball>,
     playerBalls: Map<string, Ball>,
     frameNumber: number,
-    deletedBalls: number[], addedBalls: number[]) {
+    deletedBalls: number[], addedBalls: number[], sfx: string[]) {
     const npb: object[] = [];
     for (const ballId of addedBalls) {
       npb.push([ballId, nonPlayerBalls.get(ballId)]);
@@ -26,6 +27,7 @@ export class CapturedState {
     dict['playerBalls'] = pb;
     dict['frameNumber'] = frameNumber;
     dict['deletedBalls'] = deletedBalls;
+    dict['sfx'] = sfx;
     return JSON.stringify(dict);
   }
 
@@ -60,5 +62,10 @@ export class CapturedState {
     for (const i of dict['deletedBalls']) {
       target.nonPlayerBalls.delete(i);
     }
+    target.sfx.clear();
+    for (const s of dict['sfx']) {
+      target.sfx.add(s);
+    }
+
   }
 }

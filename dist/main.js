@@ -53,11 +53,13 @@ class Ball {
         ctx.strokeStyle =
             ['green', 'yellow', 'white', 'blue', 'turquoise'][Math.trunc(Math.random() * 5)];
         ctx.beginPath();
-        ctx.moveTo(this.x + this.r * (Math.random() + 1), this.y);
+        const startR = this.r * (Math.random() + 1);
+        ctx.moveTo(this.x - startR, this.y);
         for (let t = -Math.PI; t < Math.PI; t += 0.1) {
             const rr = this.r * (Math.random() + 1);
             ctx.lineTo(this.x + Math.cos(t) * rr, this.y + Math.sin(t) * rr);
         }
+        ctx.lineTo(this.x - startR, this.y);
         ctx.stroke();
         this.render(ctx, frameNumber);
     }
@@ -82,8 +84,9 @@ class CapturedState {
         this.nonPlayerBalls = new Map();
         this.playerBalls = new Map();
         this.deletedBalls = [];
+        this.sfx = new Set();
     }
-    static serialize(nonPlayerBalls, playerBalls, frameNumber, deletedBalls, addedBalls) {
+    static serialize(nonPlayerBalls, playerBalls, frameNumber, deletedBalls, addedBalls, sfx) {
         const npb = [];
         for (const ballId of addedBalls) {
             npb.push([ballId, nonPlayerBalls.get(ballId)]);
@@ -97,6 +100,7 @@ class CapturedState {
         dict['playerBalls'] = pb;
         dict['frameNumber'] = frameNumber;
         dict['deletedBalls'] = deletedBalls;
+        dict['sfx'] = sfx;
         return JSON.stringify(dict);
     }
     static deserialize(serialized) {
@@ -131,6 +135,10 @@ class CapturedState {
         for (const i of dict['deletedBalls']) {
             target.nonPlayerBalls.delete(i);
         }
+        target.sfx.clear();
+        for (const s of dict['sfx']) {
+            target.sfx.add(s);
+        }
     }
 }
 exports.CapturedState = CapturedState;
@@ -157,12 +165,16 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ClientState = void 0;
 const capturedState_1 = __webpack_require__(158);
 const futureMove_1 = __webpack_require__(456);
+const sfx_1 = __webpack_require__(932);
 class ClientState {
     constructor(peerGroup, hostId) {
         this.peerGroup = peerGroup;
         this.hostId = hostId;
         this.peerGroup.addCallback('updateState', (fromId, data) => {
             capturedState_1.CapturedState.merge(data, this.capturedState);
+            for (const s of this.capturedState.sfx.values()) {
+                sfx_1.Sfx.play(s);
+            }
         });
     }
     static fetchState(peerGroup, hostId) {
@@ -313,10 +325,12 @@ const peerjs_1 = __importDefault(__webpack_require__(755));
 const peerGroup_1 = __webpack_require__(205);
 const main_1 = __webpack_require__(225);
 const hud_1 = __webpack_require__(93);
+const sfx_1 = __webpack_require__(932);
 console.log('Hello, World!');
 const url = new URL(document.URL);
 function go() {
     return __awaiter(this, void 0, void 0, function* () {
+        ['bounce', 'leech', 'pickup', 'split'].map((name) => sfx_1.Sfx.prime(name));
         const joinBox = document.createElement('div');
         joinBox.classList.add('joinBox');
         document.getElementsByTagName('body')[0].appendChild(joinBox);
@@ -812,6 +826,7 @@ const ball_1 = __webpack_require__(340);
 const capturedState_1 = __webpack_require__(158);
 const futureMove_1 = __webpack_require__(456);
 const log_1 = __webpack_require__(151);
+const sfx_1 = __webpack_require__(932);
 const playerColors = [
     'Chartreuse',
     'Fuchsia',
@@ -827,7 +842,8 @@ class ServerState {
         this.playerBalls = new Map();
         this.frameNumber = 0;
         this.ballsToDelete = [];
-        this.addedBalls = [];
+        this.changedBalls = [];
+        this.sfx = [];
         this.moveBuffer = [];
         this.nextBall = 0;
         this.peerGroup = peerGroup;
@@ -839,7 +855,7 @@ class ServerState {
         });
     }
     serialize() {
-        return capturedState_1.CapturedState.serialize(this.nonPlayerBalls, this.playerBalls, this.frameNumber, this.ballsToDelete, this.addedBalls);
+        return capturedState_1.CapturedState.serialize(this.nonPlayerBalls, this.playerBalls, this.frameNumber, this.ballsToDelete, this.changedBalls, this.sfx);
     }
     populate(numBalls, width, height) {
         for (let i of this.nonPlayerBalls.keys()) {
@@ -855,7 +871,7 @@ class ServerState {
             const b = new ball_1.Ball(Math.random() * (width - 10) + 5, Math.random() * (height - 10) + 5, ball_1.Ball.minRadius);
             const ballId = this.nextBall++;
             this.nonPlayerBalls.set(ballId, b);
-            this.addedBalls.push(ballId);
+            this.changedBalls.push(ballId);
         }
     }
     stop() {
@@ -889,9 +905,14 @@ class ServerState {
     }
     splitInternal(playerId, lastAngle) {
         const ball = this.playerBalls.get(playerId);
-        const newRadius = ball_1.Ball.minRadius;
-        const oldRadius = Math.sqrt(ball.r * ball.r - newRadius * newRadius);
-        if (oldRadius < ball_1.Ball.minRadius) {
+        // const newRadius = Ball.minRadius;
+        // const oldRadius = Math.sqrt(ball.r * ball.r - newRadius * newRadius);
+        // if (oldRadius < Ball.minRadius) {
+        //   return;
+        // }
+        const newRadius = ball.r * Math.sqrt(0.2);
+        const oldRadius = ball.r * Math.sqrt(0.8);
+        if (newRadius < ball_1.Ball.minRadius) {
             return;
         }
         const dx = ball.r * Math.cos(lastAngle);
@@ -900,10 +921,11 @@ class ServerState {
         b.c = ball.c;
         const ballId = this.nextBall++;
         this.nonPlayerBalls.set(ballId, b);
-        this.addedBalls.push(ballId);
+        this.changedBalls.push(ballId);
         ball.x += dx;
         ball.y += dy;
         ball.r = newRadius;
+        this.sfx.push('split');
     }
     split(playerId, lastAngle) {
         const m = new futureMove_1.FutureMove(playerId, this.frameNumber + capturedState_1.CapturedState.frameLatency, 'split');
@@ -957,10 +979,12 @@ class ServerState {
                 if (o.c === b.c || o.r <= b.r) {
                     b.r = Math.sqrt(o.r * o.r + b.r * b.r);
                     ballsToRemove.push(i);
+                    this.sfx.push('pickup');
                 }
                 else {
+                    this.sfx.push('bounce');
                     this.bounce(b, o);
-                    this.addedBalls.push(i);
+                    this.changedBalls.push(i);
                 }
             }
         }
@@ -978,6 +1002,7 @@ class ServerState {
             if (this.distance(dx, dy) < o.r + b.r) {
                 o.r = Math.sqrt(o.r * o.r + 1);
                 b.r = Math.sqrt(b.r * b.r - 1);
+                this.sfx.push('leech');
                 this.bounce(b, o);
             }
         }
@@ -1017,14 +1042,51 @@ class ServerState {
                     this.splitInternal(move.playerId, move.lastAngle);
             }
         }
-        const serializedState = capturedState_1.CapturedState.serialize(this.nonPlayerBalls, this.playerBalls, this.frameNumber, this.ballsToDelete, this.addedBalls);
+        for (const s of this.sfx) {
+            sfx_1.Sfx.play(s);
+        }
+        const serializedState = capturedState_1.CapturedState.serialize(this.nonPlayerBalls, this.playerBalls, this.frameNumber, this.ballsToDelete, this.changedBalls, this.sfx);
         this.peerGroup.broadcast('updateState', serializedState);
         this.ballsToDelete.splice(0);
-        this.addedBalls.splice(0);
+        this.changedBalls.splice(0);
+        this.sfx.splice(0);
     }
 }
 exports.ServerState = ServerState;
 //# sourceMappingURL=serverState.js.map
+
+/***/ }),
+
+/***/ 932:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Sfx = void 0;
+class Sfx {
+    static prime(name) {
+        const audio = document.createElement('audio');
+        audio.src = `sfx/${name}.wav`;
+        audio.hidden = true;
+        document.getElementsByTagName('body')[0].appendChild(audio);
+        this.clips.set(name, audio);
+    }
+    static play(name) {
+        if (this.clips.has(name)) {
+            this.clips.get(name).currentTime = 0.0;
+            this.clips.get(name).play();
+        }
+        else {
+            this.prime(name);
+            this.clips.get(name).currentTime = 0.0;
+            this.clips.get(name).play();
+        }
+    }
+}
+exports.Sfx = Sfx;
+Sfx.clips = new Map();
+//# sourceMappingURL=sfx.js.map
 
 /***/ }),
 

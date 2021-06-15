@@ -3,11 +3,13 @@ import { PeerGroup } from "./peerGroup";
 import { Main } from "./main";
 import { Hud } from "./hud";
 import { start } from "repl";
+import { Sfx } from "./sfx";
 
 console.log('Hello, World!');
 const url = new URL(document.URL);
 
 async function go() {
+  ['bounce', 'leech', 'pickup', 'split'].map((name) => Sfx.prime(name));
   const joinBox = document.createElement('div');
   joinBox.classList.add('joinBox');
   document.getElementsByTagName('body')[0].appendChild(joinBox);

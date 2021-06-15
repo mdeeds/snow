@@ -4,6 +4,7 @@ import { FutureMove } from "./futureMove";
 import { ImmutableBall } from "./immutableBall";
 import { Log } from "./log";
 import { PeerGroup } from "./peerGroup";
+import { Sfx } from "./sfx";
 import { State } from "./state";
 
 const playerColors = [
@@ -20,7 +21,8 @@ export class ServerState implements State {
   private playerBalls: Map<string, Ball> = new Map<string, Ball>();
   private frameNumber: number = 0;
   private ballsToDelete: number[] = [];
-  private addedBalls: number[] = [];
+  private changedBalls: number[] = [];
+  private sfx: string[] = [];
 
   private moveBuffer: FutureMove[] = [];
   private peerGroup: PeerGroup;
@@ -39,7 +41,7 @@ export class ServerState implements State {
   private serialize(): string {
     return CapturedState.serialize(
       this.nonPlayerBalls, this.playerBalls, this.frameNumber,
-      this.ballsToDelete, this.addedBalls);
+      this.ballsToDelete, this.changedBalls, this.sfx);
   }
 
   public populate(numBalls: number, width: number, height: number) {
@@ -59,7 +61,7 @@ export class ServerState implements State {
         Ball.minRadius);
       const ballId = this.nextBall++;
       this.nonPlayerBalls.set(ballId, b);
-      this.addedBalls.push(ballId);
+      this.changedBalls.push(ballId);
     }
   }
 
@@ -98,9 +100,14 @@ export class ServerState implements State {
   private splitInternal(playerId: string, lastAngle: number) {
     const ball = this.playerBalls.get(playerId);
 
-    const newRadius = Ball.minRadius;
-    const oldRadius = Math.sqrt(ball.r * ball.r - newRadius * newRadius);
-    if (oldRadius < Ball.minRadius) {
+    // const newRadius = Ball.minRadius;
+    // const oldRadius = Math.sqrt(ball.r * ball.r - newRadius * newRadius);
+    // if (oldRadius < Ball.minRadius) {
+    //   return;
+    // }
+    const newRadius = ball.r * Math.sqrt(0.2);
+    const oldRadius = ball.r * Math.sqrt(0.8);
+    if (newRadius < Ball.minRadius) {
       return;
     }
 
@@ -111,11 +118,12 @@ export class ServerState implements State {
     b.c = ball.c;
     const ballId = this.nextBall++;
     this.nonPlayerBalls.set(ballId, b);
-    this.addedBalls.push(ballId);
+    this.changedBalls.push(ballId);
 
     ball.x += dx;
     ball.y += dy;
     ball.r = newRadius;
+    this.sfx.push('split');
   }
 
   public split(playerId: string, lastAngle: number) {
@@ -176,9 +184,11 @@ export class ServerState implements State {
         if (o.c === b.c || o.r <= b.r) {
           b.r = Math.sqrt(o.r * o.r + b.r * b.r);
           ballsToRemove.push(i);
+          this.sfx.push('pickup');
         } else {
+          this.sfx.push('bounce');
           this.bounce(b, o);
-          this.addedBalls.push(i);
+          this.changedBalls.push(i);
         }
       }
     }
@@ -197,6 +207,7 @@ export class ServerState implements State {
       if (this.distance(dx, dy) < o.r + b.r) {
         o.r = Math.sqrt(o.r * o.r + 1);
         b.r = Math.sqrt(b.r * b.r - 1);
+        this.sfx.push('leech');
         this.bounce(b, o);
       }
     }
@@ -240,10 +251,16 @@ export class ServerState implements State {
           this.splitInternal(move.playerId, move.lastAngle);
       }
     }
+    for (const s of this.sfx) {
+      Sfx.play(s);
+    }
+
     const serializedState = CapturedState.serialize(this.nonPlayerBalls,
-      this.playerBalls, this.frameNumber, this.ballsToDelete, this.addedBalls);
+      this.playerBalls, this.frameNumber, this.ballsToDelete,
+      this.changedBalls, this.sfx);
     this.peerGroup.broadcast('updateState', serializedState);
     this.ballsToDelete.splice(0);
-    this.addedBalls.splice(0);
+    this.changedBalls.splice(0);
+    this.sfx.splice(0);
   }
 }

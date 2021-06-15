@@ -59,11 +59,13 @@ export class Ball implements ImmutableBall {
       [Math.trunc(Math.random() * 5)];
 
     ctx.beginPath();
-    ctx.moveTo(this.x + this.r * (Math.random() + 1), this.y);
+    const startR = this.r * (Math.random() + 1);
+    ctx.moveTo(this.x - startR, this.y);
     for (let t = -Math.PI; t < Math.PI; t += 0.1) {
       const rr = this.r * (Math.random() + 1);
       ctx.lineTo(this.x + Math.cos(t) * rr, this.y + Math.sin(t) * rr);
     }
+    ctx.lineTo(this.x - startR, this.y);
     ctx.stroke();
 
     this.render(ctx, frameNumber);
